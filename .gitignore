@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Paper Lens local development and source fixtures
+node_modules/
+test-results/
+fixtures/*.pdf
+fixtures/extracted.*
+.DS_Store

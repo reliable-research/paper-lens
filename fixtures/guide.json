@@ -1,0 +1,534 @@
+{
+  "title": "Monitoring Monitorability",
+  "source": "https://arxiv.org/abs/2512.18311v1",
+  "summary": "Can we keep reasoning models observable as training and compute scale? This paper builds a monitorability evaluation suite. It finds no overall collapse in two frontier RL runs, while deliberate CoT pressure can still hide useful evidence. Follow both the findings and their qualifications.",
+  "highlights": [
+    {
+      "id": "guide-0",
+      "quote": "To measure and track monitorability, we propose three evaluation archetypes (intervention, process, and outcome-property) and a new monitorability metric, and introduce a broad evaluation suite.",
+      "page": 1,
+      "category": "contribution",
+      "section": "Abstract",
+      "explanation": "The paper contributes a measurement framework, rather than a new technique that eliminates misbehavior. Its three evaluation families look for different ways reasoning can reveal what a model is doing.",
+      "why": "Start here: this sentence states what the paper adds.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 1,
+        "start": 578,
+        "end": 772,
+        "parts": [
+          {
+            "item": 35,
+            "start": 93,
+            "end": 95
+          },
+          {
+            "item": 36,
+            "start": 0,
+            "end": 96
+          },
+          {
+            "item": 37,
+            "start": 0,
+            "end": 87
+          },
+          {
+            "item": 38,
+            "start": 0,
+            "end": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-1",
+      "quote": "Instead, our interest should lie in an observation’s monitorability , the degree to which we can identify particular aspects of a model’s actions (such as if it will cause harm).",
+      "page": 2,
+      "category": "motivation",
+      "section": "1 Introduction",
+      "explanation": "A chain of thought need not disclose every internal computation to be useful. The practical question is whether an observer can detect a particular property, such as harmful behavior, from the available trace.",
+      "why": "Distinguishes useful detection from a much stronger claim of complete reasoning faithfulness.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 2,
+        "start": 2000,
+        "end": 2178,
+        "parts": [
+          {
+            "item": 44,
+            "start": 72,
+            "end": 100
+          },
+          {
+            "item": 45,
+            "start": 0,
+            "end": 23
+          },
+          {
+            "item": 47,
+            "start": 0,
+            "end": 14
+          },
+          {
+            "item": 48,
+            "start": 0,
+            "end": 61
+          },
+          {
+            "item": 49,
+            "start": 0,
+            "end": 48
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-2",
+      "quote": "Monitorability is a two sided property which depends on both (1) the informativeness of a model’s outputs and (2) a monitor’s capacity to extract information from the model’s outputs.",
+      "page": 3,
+      "category": "method",
+      "section": "1 Introduction · contributions",
+      "explanation": "A low score can mean the agent does not expose useful evidence, the monitor cannot interpret it, or both. Monitorability depends on the agent, the observer, and what the observer is allowed to see.",
+      "why": "Prevents treating monitorability as an intrinsic property of the agent alone.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 3,
+        "start": 324,
+        "end": 507,
+        "parts": [
+          {
+            "item": 8,
+            "start": 0,
+            "end": 4
+          },
+          {
+            "item": 9,
+            "start": 0,
+            "end": 93
+          },
+          {
+            "item": 10,
+            "start": 0,
+            "end": 85
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-3",
+      "quote": "Intervention evaluations allow us to probe whether a monitor can detect why behavior changed, rather than simply detecting whether a behavior occurred.",
+      "page": 5,
+      "category": "method",
+      "section": "3 Evaluation archetypes",
+      "explanation": "These experiments compare behavior with and without a controlled intervention, such as an answer hint. They test whether the monitor detects the influence on behavior, rather than simply noticing that a hint was present.",
+      "why": "Connects the evaluation to causal influence; aggregate effects do not label individual causal events.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 5,
+        "start": 2712,
+        "end": 2863,
+        "parts": [
+          {
+            "item": 50,
+            "start": 0,
+            "end": 71
+          },
+          {
+            "item": 52,
+            "start": 0,
+            "end": 3
+          },
+          {
+            "item": 54,
+            "start": 0,
+            "end": 75
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-4",
+      "quote": "Unlike standard control evaluations, process evals allow us to link outcomes to particular steps the model must have taken and ask if those steps are monitorable.",
+      "page": 5,
+      "category": "method",
+      "section": "3 Evaluation archetypes",
+      "explanation": "For problems with a small set of known valid solution paths, a correct answer constrains what reasoning must have happened. The monitor looks for evidence of those necessary steps.",
+      "why": "Explains how the authors obtain an approximate check on reasoning-process visibility.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 5,
+        "start": 3222,
+        "end": 3384,
+        "parts": [
+          {
+            "item": 62,
+            "start": 89,
+            "end": 95
+          },
+          {
+            "item": 63,
+            "start": 0,
+            "end": 93
+          },
+          {
+            "item": 64,
+            "start": 0,
+            "end": 61
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-5",
+      "quote": "Unlike intervention and process evaluations that link some measurement of outcomes to the reasoning, outcome-property evaluations simply ask if some aspect of the outcome can be predicted.",
+      "page": 6,
+      "category": "method",
+      "section": "3 Evaluation archetypes",
+      "explanation": "Outcome-property tests ask whether a monitor can anticipate a property of the final behavior. For impossible coding tasks, passing the tests can reveal that the tests were subverted. This does not establish a complete explanation of the internal reasoning.",
+      "why": "Separates detecting a bad outcome from reconstructing why it happened.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 6,
+        "start": 402,
+        "end": 590,
+        "parts": [
+          {
+            "item": 6,
+            "start": 0,
+            "end": 58
+          },
+          {
+            "item": 7,
+            "start": 0,
+            "end": 89
+          },
+          {
+            "item": 8,
+            "start": 0,
+            "end": 39
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-6",
+      "quote": "One limitation of these results is that we only tested monitorability with OpenAI models serving as monitors.",
+      "page": 16,
+      "category": "limitation",
+      "section": "4 Monitorability of frontier reasoning models",
+      "explanation": "The comparison uses OpenAI models as monitors. Shared conventions between agent and monitor might favor some models, so model-family rankings should not be interpreted as universal.",
+      "why": "Qualifies the cross-model comparison.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 16,
+        "start": 3484,
+        "end": 3593,
+        "parts": [
+          {
+            "item": 77,
+            "start": 0,
+            "end": 96
+          },
+          {
+            "item": 78,
+            "start": 0,
+            "end": 12
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-7",
+      "quote": "Most of this decrease seems to be primarily driven by drastically reduced CoT lengths; however, part way into training the CoT length stabilizes and monitorability continues to go down, which qualitatively seems to be reflected in CoTs consisting of singular filler words such as “Weasel” instead.",
+      "page": 17,
+      "category": "result",
+      "section": "5 Unmonitorability detection",
+      "explanation": "When explicitly rewarded for making actions hard to predict from reasoning, the model often shortened its chain of thought. Later degradation persisted even after length stabilized. The authors do not establish sophisticated encrypted reasoning.",
+      "why": "Shows a concrete way training pressure can weaken the observation channel.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 17,
+        "start": 1155,
+        "end": 1452,
+        "parts": [
+          {
+            "item": 23,
+            "start": 90,
+            "end": 102
+          },
+          {
+            "item": 24,
+            "start": 0,
+            "end": 96
+          },
+          {
+            "item": 25,
+            "start": 0,
+            "end": 95
+          },
+          {
+            "item": 26,
+            "start": 0,
+            "end": 91
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-8",
+      "quote": "While we did not see general decreases in monitorability, we saw a small monitorability decrease in Coding-impossible-tasks as seen in Figure 25.",
+      "page": 17,
+      "category": "result",
+      "section": "5 Unmonitorability detection",
+      "explanation": "Targeted pressure against discussing particular topics did not broadly erase monitorability. The detectable damage was concentrated in impossible coding tasks. A good aggregate score can hide a local failure.",
+      "why": "Supports keeping a diverse suite and inspecting individual environments.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 17,
+        "start": 1711,
+        "end": 1856,
+        "parts": [
+          {
+            "item": 33,
+            "start": 0,
+            "end": 41
+          },
+          {
+            "item": 34,
+            "start": 0,
+            "end": 57
+          },
+          {
+            "item": 36,
+            "start": 0,
+            "end": 23
+          },
+          {
+            "item": 38,
+            "start": 0,
+            "end": 10
+          },
+          {
+            "item": 39,
+            "start": 0,
+            "end": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-9",
+      "quote": "Our experiments are relatively limited as we did not do broad sweeps or ablations, so we do not make any strong claims.",
+      "page": 17,
+      "category": "limitation",
+      "section": "5 Unmonitorability detection",
+      "explanation": "The obfuscation experiments did not sweep many settings or isolate every factor. They demonstrate possible failures and that the suite can notice them, rather than establishing how common these failures will be.",
+      "why": "Bounds the strength of the obfuscation conclusions.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 17,
+        "start": 2008,
+        "end": 2127,
+        "parts": [
+          {
+            "item": 41,
+            "start": 0,
+            "end": 95
+          },
+          {
+            "item": 42,
+            "start": 0,
+            "end": 23
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-10",
+      "quote": "These results suggest that reinforcement learning does not meaningfully degrade monitorability, even at the frontier scale at OpenAI; however, we underscore that these results only represent two experiments and more thorough study is needed.",
+      "page": 19,
+      "category": "result",
+      "section": "6.1 Effect of high scale RL",
+      "explanation": "Across the two frontier training runs studied, the authors did not observe meaningful overall degradation from RL. This is not the original paper’s experiment of directly rewarding the agent for evading a CoT monitor. It also does not mean reward hacking disappeared.",
+      "why": "Read this headline result together with its two-run qualification and the obfuscation experiment.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 19,
+        "start": 1007,
+        "end": 1248,
+        "parts": [
+          {
+            "item": 11,
+            "start": 13,
+            "end": 96
+          },
+          {
+            "item": 12,
+            "start": 0,
+            "end": 97
+          },
+          {
+            "item": 13,
+            "start": 0,
+            "end": 60
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-11",
+      "quote": "The observation that RL does not meaningfully degrade monitorability on average does not take away from the fact, however, that in principle one should expect RL to teach a model to compress its CoT and, in the presence of length penalties, suppress any externalized information which is not necessary for the model to achieve its final answer.",
+      "page": 19,
+      "category": "limitation",
+      "section": "6.1 Effect of high scale RL",
+      "explanation": "The absence of an average decline in these runs does not guarantee future stability. Length penalties can favor compact reasoning that omits information unnecessary for task reward but useful to an observer.",
+      "why": "Preserves the original warning about pressure on the reasoning channel.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 19,
+        "start": 2046,
+        "end": 2390,
+        "parts": [
+          {
+            "item": 25,
+            "start": 0,
+            "end": 93
+          },
+          {
+            "item": 26,
+            "start": 0,
+            "end": 96
+          },
+          {
+            "item": 27,
+            "start": 0,
+            "end": 96
+          },
+          {
+            "item": 28,
+            "start": 0,
+            "end": 56
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-12",
+      "quote": "As hypothesized, we found that for a given capability level, it is often possible to achieve a higher monitorability by instead using a smaller model at a higher reasoning effort.",
+      "page": 21,
+      "category": "result",
+      "section": "6.2 Effect of pretraining compute",
+      "explanation": "At a matched capability level, a smaller model thinking longer can sometimes expose more useful reasoning than a larger model thinking briefly. This comparison concerns the studied tasks, not all possible deployment settings.",
+      "why": "Introduces a practical tradeoff between model size, reasoning length, and visibility.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 21,
+        "start": 812,
+        "end": 991,
+        "parts": [
+          {
+            "item": 10,
+            "start": 0,
+            "end": 72
+          },
+          {
+            "item": 11,
+            "start": 0,
+            "end": 98
+          },
+          {
+            "item": 12,
+            "start": 0,
+            "end": 7
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-13",
+      "quote": "A major limitation of these experiments is that we only trained with a single seed at each model scale.",
+      "page": 21,
+      "category": "limitation",
+      "section": "6.2 Effect of pretraining compute",
+      "explanation": "Only one training seed was used at each model scale. An unusual middle-sized model makes it unclear how much of the apparent scaling pattern would reproduce across independent runs.",
+      "why": "A central reproducibility qualification for the scaling result.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 21,
+        "start": 1780,
+        "end": 1883,
+        "parts": [
+          {
+            "item": 26,
+            "start": 0,
+            "end": 96
+          },
+          {
+            "item": 27,
+            "start": 0,
+            "end": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-14",
+      "quote": "Notably, when OpenAI o4-mini is only given the agent’s actions and outputs, monitorability can only improve by ~4% through increasing reasoning effort, indicating that giving the monitor access to CoT “unlocks” steeper test-time compute monitorability trends.",
+      "page": 22,
+      "category": "result",
+      "section": "6.3 Agent versus monitor compute",
+      "explanation": "Giving the monitor more time helped more when it could inspect the agent’s reasoning than when it saw only actions and answers. CoT provides additional evidence for the monitor to work with.",
+      "why": "Extends the original weaker-monitor result with a compute-scaling experiment.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 22,
+        "start": 630,
+        "end": 889,
+        "parts": [
+          {
+            "item": 24,
+            "start": 0,
+            "end": 66
+          },
+          {
+            "item": 25,
+            "start": 0,
+            "end": 95
+          },
+          {
+            "item": 26,
+            "start": 0,
+            "end": 96
+          }
+        ]
+      }
+    },
+    {
+      "id": "guide-15",
+      "quote": "Empirically, we find follow-up questions to be most effective when they are specific and tailored to the monitor’s objective.",
+      "page": 22,
+      "category": "result",
+      "section": "7 Getting more monitorability out of CoT",
+      "explanation": "Asking a targeted follow-up can elicit additional reasoning relevant to the monitoring question. This is an empirical way to expose more evidence; it is not a guarantee that the model answers honestly.",
+      "why": "Shows a possible improvement beyond passively reading the original trace.",
+      "origin": "Included guide · source checked",
+      "anchor": {
+        "page": 22,
+        "start": 1619,
+        "end": 1744,
+        "parts": [
+          {
+            "item": 42,
+            "start": 0,
+            "end": 100
+          },
+          {
+            "item": 43,
+            "start": 0,
+            "end": 24
+          }
+        ]
+      }
+    }
+  ]
+}

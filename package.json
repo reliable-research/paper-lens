@@ -1,0 +1,25 @@
+{
+  "name": "paper-lens",
+  "version": "0.1.0",
+  "description": "Chrome PDF reading guide with source-anchored highlights and explanations",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tests/browser.mjs",
+    "package": "node scripts/package.mjs",
+    "fetch:paper": "node scripts/fetch-paper.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reliable-research/paper-lens.git"
+  }
+}

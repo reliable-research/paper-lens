@@ -1,0 +1,4 @@
+# Third-party materials
+
+- PDF.js, Mozilla and individual contributors, Apache License 2.0. Packaged files are copied from pdfjs-dist 6.4.299; license at vendor/PDFJS-LICENSE. text-layer.css is the relevant text-layer section of the same distribution's pdf_viewer.css.
+- Monitoring Monitorability, Melody Y. Guan et al., OpenAI, arXiv:2512.18311v1 (20 December 2025). Original PDF: https://arxiv.org/pdf/2512.18311v1; record: https://arxiv.org/abs/2512.18311v1. The source PDF is not redistributed in this repository or packaged extension. The demo retrieves it from arXiv on request. For development, npm run fetch:paper downloads a hash-checked, git-ignored local fixture. The reading guide contains selected quotations, source locations and original commentary; the paper and quotations retain their authors' rights. The software MIT license does not apply to the paper.

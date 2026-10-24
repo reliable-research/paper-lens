@@ -1,5 +1,6 @@
 import * as pdfjs from '../vendor/pdf.mjs';
 import {buildPage,findQuote,anchorRange,selectCore,normalize,mergeHighlights} from './core.mjs';
+import {insightQuestions} from './insights.mjs';
 import {analyzeWithProvider,providerUrl} from './provider.mjs';
 import {analyzeWithCodex,nativeRequest} from './native.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('../vendor/pdf.worker.mjs',import.meta.url).href;
@@ -88,7 +89,7 @@ async function renderPage(n,epoch=state.epoch){
   const result={box,canvas,textLayer,overlay,task,viewport};state.rendered.set(n,result);drawHighlights(n);return result;
  })();state.rendering.set(n,job);try{return await job;}finally{if(state.rendering.get(n)===job)state.rendering.delete(n);}
 }
-function visibleHighlights(){const q=$('search').value.toLowerCase();return state.highlights.filter(h=>(state.filter==='all'||h.category===state.filter)&&(!q||[h.quote,h.explanation,h.section,h.note||''].join(' ').toLowerCase().includes(q)));}
+function visibleHighlights(){const q=$('search').value.toLowerCase();return state.highlights.filter(h=>(state.filter==='all'||h.category===state.filter)&&(!q||[h.quote,h.title,h.interesting,h.mechanism,h.uncertainty,h.explanation,h.section,h.note||'',...(h.questions||[]),...(h.evidence||[]).map(e=>e.reason),...(h.chat||[]).map(m=>m.content)].join(' ').toLowerCase().includes(q)));}
 function drawHighlights(n,all=false){
  const r=state.rendered.get(n);if(!r)return;r.overlay.replaceChildren();const bounds=r.box.getBoundingClientRect();
  for(const h of (all?state.highlights:visibleHighlights()).filter(h=>h.page===n)){
@@ -107,8 +108,8 @@ function renderList(){
  const filters=$('filters');filters.replaceChildren();for(const cat of ['all',...cats]){const b=el('button',cat===state.filter?'active':'',cat==='all'?'All':cat);b.addEventListener('click',()=>{state.filter=cat;renderList();redraw();});filters.append(b);}
  const list=$('highlight-list');list.replaceChildren();for(const h of visibleHighlights()){
   const b=el('button','passage-card'+(h.id===state.selected?' active':''));b.dataset.id=h.id;
-  const top=el('span','card-top');top.append(el('span',`tag ${h.category}`,h.category),el('span','small muted',`p. ${h.page}`));
-  b.append(top,el('span','card-title',h.quote.length>130?h.quote.slice(0,127)+'…':h.quote),el('span','section-label',h.section));b.addEventListener('click',()=>selectHighlight(h.id,true));list.append(b);
+  const top=el('span','card-top');top.append(el('span',`tag ${h.category}`,h.category),el('span','small muted',`${h.rank?'#'+h.rank+' · ':''}p. ${h.page}`));
+  b.append(top,el('span','card-title',h.title||(h.quote.length>130?h.quote.slice(0,127)+'…':h.quote)),el('span','section-label',h.section));b.addEventListener('click',()=>selectHighlight(h.id,true));list.append(b);
  }
  if(!list.children.length)list.append(el('p','muted small',state.highlights.length?'No passages match this filter.':'No highlights yet. Select text or find core passages.'));
 }
@@ -120,11 +121,15 @@ async function selectHighlight(id,jump=true){
 function renderInspector(h){
  clearTimeout(explanationTimer);explanationTimer=null;const panel=$('explanation-popover');panel.dataset.highlight=h.id;panel.hidden=false;const c=$('inspector-content');c.replaceChildren();
  const top=el('div','inspector-actions');const close=el('button','','× Close');close.id='close-explanation';close.addEventListener('click',closeExplanation);top.append(close);c.append(top);
- c.append(el('h4','','Explore this passage'));const tips=el('div','quick-questions');
+ if(h.title){c.append(el('h3','insight-title',h.title),el('h4','','What is interesting'),el('div','insight-interesting',h.interesting));}
+ c.append(el('h4','',h.title?'Investigate this insight':'Explore this passage'));const tips=el('div','quick-questions');
  const specific=h.category==='result'?['Check the evidence','What experiments support this claim, and what are their limits?']:h.category==='method'?['Walk through the method','Walk through this method step by step, with a concrete example.']:['Why does this matter?','Why does this passage matter to the paper’s main argument?'];
- for(const [label,question] of [['Explain simply','Explain this passage in plain language.'],['Give an example','Give a concrete example that illustrates this passage. Label illustrative examples clearly.'],specific]){const b=el('button','',label);b.dataset.quickQuestion=question;b.dataset.aiExplain='';b.disabled=state.loading;b.addEventListener('click',()=>askPassage(h,question));tips.append(b);}c.append(tips);
+ for(const [label,question] of (insightQuestions(h).length===3?insightQuestions(h).map(q=>[q,q]):[['Explain simply','Explain this passage in plain language.'],['Give an example','Give a concrete example that illustrates this passage. Label illustrative examples clearly.'],specific])){const b=el('button','',label);b.dataset.quickQuestion=question;b.dataset.aiExplain='';b.disabled=state.loading;b.addEventListener('click',()=>askPassage(h,question));tips.append(b);}c.append(tips);
  c.append(el('h4','','Chat about this passage'));const log=el('div','passage-chat');log.setAttribute('aria-live','polite');
  if(h.origin!=='Your highlight'&&h.explanation)log.append(el('div','explanation',h.explanation));
+ if(h.mechanism){const details=el('details','insight-detail');details.append(el('summary','','How it works'),el('p','',h.mechanism));log.append(details);}
+ if(h.evidence?.length){const sources=el('div','insight-evidence');sources.append(el('h4','','Evidence in the paper'));for(const evidence of h.evidence){const b=el('button','evidence-link',`${evidence.role} · p. ${evidence.page} — ${evidence.reason}`);b.dataset.evidencePage=evidence.page;b.addEventListener('click',()=>goToEvidence(evidence));sources.append(b);}log.append(sources);}
+ if(h.uncertainty)log.append(el('h4','','What remains uncertain'),el('div','insight-uncertainty',h.uncertainty));
  for(const m of h.chat||[]){const item=el('div',`chat-message ${m.role}`);item.append(el('strong','',m.role==='user'?'You':'Paper Lens'),el('div','',m.content));log.append(item);}c.append(log);
  const form=el('form');form.id='passage-question';const label=el('label','note-label','Ask a question');label.htmlFor='personal-note';const input=el('textarea');input.id='personal-note';input.maxLength=1000;input.placeholder='Explain this idea, compare it, or ask a follow-up…';input.value=h.note||'';input.addEventListener('input',()=>{h.note=input.value;save();});const send=el('button','','Send');send.type='submit';send.dataset.aiExplain='';send.disabled=state.loading;form.append(label,input,send);form.addEventListener('submit',e=>{e.preventDefault();if(input.value.trim())askPassage(h,input.value.trim());});c.append(form);
  if(h.chatPending)c.append(el('p','muted small','Thinking with the whole paper…'));
@@ -139,6 +144,7 @@ async function askPassage(h,question){
  try{if(s.backend==='api'){providerUrl(s.endpoint);await permissionFor(s.endpoint);}if(epoch!==state.epoch)return;const analyze=s.backend==='api'?analyzeWithProvider:analyzeWithCodex;const result=await analyze({pages:state.pages,settings:requestSettings,signal:controller.signal,focus:h.quote,question:question.slice(0,1000),history});if(epoch!==state.epoch||fingerprint!==state.fingerprint)return;const answer=result.highlights.find(x=>normalize(x.quote)===normalize(h.quote));if(!answer)throw Error('No answer matched this passage. Try again.');h.chat.push({role:'assistant',content:answer.explanation+(answer.why?'\n\n'+answer.why:'')});
  }catch(e){if(epoch===state.epoch)h.chatError=e.name==='AbortError'?'Request cancelled. Your question is saved.':e.message;}finally{clearTimeout(timer);h.chatPending=false;if(epoch===state.epoch){busy(false);$('cancel-analysis').hidden=true;save();renderList();if(panelVisibleFor(h))renderInspector(h);}}
 }
+async function goToEvidence(evidence){const epoch=state.epoch;const anchor=findQuote(state.pages,evidence.quote,evidence.page);if(!anchor||anchor.page!==evidence.page)return;const r=await renderPage(evidence.page,epoch);if(!r||epoch!==state.epoch)return;const first=anchor.parts[0],last=anchor.parts.at(-1),start=r.textLayer.textDivs[first.item]?.firstChild,end=r.textLayer.textDivs[last.item]?.firstChild;if(!start||!end)return;closeExplanation();const range=document.createRange();range.setStart(start,Math.min(first.start,start.length));range.setEnd(end,Math.min(last.end,end.length));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);$('page-input').value=evidence.page;scrollToSource(start.parentElement);}
 function panelVisibleFor(h){const p=$('explanation-popover');return !p.hidden&&p.dataset.highlight===h.id;}
 async function permissionFor(url){
  if(!globalThis.chrome?.permissions)return;
@@ -149,7 +155,7 @@ async function loadUrl(value){
  if(u.protocol!=='https:')throw Error('Use an HTTPS PDF URL, or Open PDF for a local file.');await permissionFor(u.href);$('url-dialog').close();$('welcome').hidden=true;$('workspace').hidden=false;status('Downloading PDF…');const response=await fetch(u.href);if(!response.ok)throw Error(`PDF download returned HTTP ${response.status}.`);const data=new Uint8Array(await response.arrayBuffer());if(new TextDecoder().decode(data.slice(0,1024)).indexOf('%PDF-')<0)throw Error('The link did not return a PDF. Open a direct PDF link or choose a local file.');await openPdf(data,u.pathname.split('/').pop()||'Paper');
 }
 function updateBackendUI(){const backend=$('backend').value;$('codex-settings').hidden=backend!=='codex';$('api-settings').hidden=backend!=='api';}
-function updateAnalysisLabel(){$('ai-analyze').textContent=settings().backend==='api'?'Analyze with API ✦':'Analyze with local Codex ✦';}
+function updateAnalysisLabel(){$('ai-analyze').textContent=settings().backend==='api'?'Find insights with API ✦':'Find insights with local Codex ✦';}
 function openSettings(){const s=settings();$('backend').value=s.backend;$('codex-model').value=s.codexModel||'';$('api-endpoint').value=s.endpoint||'';$('api-model').value=s.model||'';$('api-key').value=s.key||'';$('interests').value=s.interests||'';$('remember-key').checked=!!safeJSON('paper-lens-key','');$('settings-status').textContent='';$('connection-status').textContent='';$('setup-command').textContent=`npm run install:companion -- --extension-id ${chrome.runtime.id}`;updateBackendUI();$('settings').showModal();}
 async function runAI(focus){
  if(state.loading)return;
@@ -160,20 +166,20 @@ async function runAI(focus){
   state.controller?.abort();const controller=new AbortController();state.controller=controller;$('cancel-analysis').hidden=false;
   const local=s.backend!=='api';status(local?`Local Codex is analyzing all ${state.pages.length} pages using your ChatGPT subscription…`:`Sending all ${state.pages.length} pages to ${new URL(s.endpoint).hostname}…`);
   let result;
-  if(local)result=await analyzeWithCodex({pages:state.pages,settings:s,signal:controller.signal,focus:focus?.quote,onProgress:p=>{if(epoch===state.epoch)status(`Local Codex · ${p.stage} · ${p.pages} pages · ChatGPT subscription`);}});
+  if(local)result=await analyzeWithCodex({pages:state.pages,settings:s,signal:controller.signal,focus:focus?.quote,onProgress:p=>{if(epoch===state.epoch)status(`Local Codex · ${p.phase||p.stage} · ${p.pages} pages · ChatGPT subscription`);}});
   else{const timer=setTimeout(()=>controller.abort(),180000);try{result=await analyzeWithProvider({pages:state.pages,settings:s,signal:controller.signal,focus:focus?.quote});}finally{clearTimeout(timer);}}
 
   if(epoch!==state.epoch||targetFingerprint!==state.fingerprint)return;
   if(focus){const replacement=result.highlights.find(h=>normalize(h.quote)===normalize(focus.quote));if(!replacement)throw Error('AI did not return the selected source quote. Existing explanation was kept.');focus.explanation=replacement.explanation;focus.why=replacement.why;focus.origin=replacement.origin;}
-  else{state.highlights=mergeHighlights(result.highlights,state.highlights);state.summary=result.summary;state.filter='all';state.selected=null;}
+  else{closeExplanation();state.highlights=mergeHighlights(result.highlights,state.highlights);state.summary=result.summary;state.filter='all';state.selected=null;}
   save();renderList();redraw();if(focus)renderInspector(focus);else $('inspector-content').replaceChildren(el('p','muted','Choose a highlighted passage to read its explanation.'));
-  status(`${local?'Local Codex':'AI'} analysis complete${result.cached?' (cached)':''} · ${result.highlights.length} verified source quotes${result.rejected?` · ${result.rejected} unanchored/duplicate entries rejected`:''}. Explanations are generated; verify against the paper.`);
+  status(`${local?'Local Codex':'AI'} analysis complete${result.pipeline?' · deep insights':''}${result.cached?' (cached)':''} · ${result.highlights.length} ${result.pipeline?'evidence-linked insights':'verified source quotes'}${result.rejected?` · ${result.rejected} entries failed source/insight checks`:''}. Explanations are generated; verify against the paper.`);
  }catch(e){if(epoch===state.epoch)status(e.name==='AbortError'?'AI request timed out or was cancelled. Existing annotations were kept.':e.message,true);}finally{if(epoch===state.epoch){busy(false);$('cancel-analysis').hidden=true;}}
 }
 async function exportNotes(format){
  const epoch=state.epoch;for(const n of new Set(state.highlights.map(h=>h.page))){await renderPage(n);if(epoch!==state.epoch)return;drawHighlights(n,true);}redraw();
  const payload={schema:'paper-lens/v1',title:state.title,fingerprint:state.fingerprint,pdfSha256:state.documentHash,pages:state.pages.length,summary:state.summary,highlights:state.highlights};
- const text=format==='json'?JSON.stringify(payload,null,2):`# ${state.title}\n\n${state.summary}\n\n`+state.highlights.map(h=>`## ${h.section} · p. ${h.page} · ${h.category}\n\n> ${h.quote}\n\n${h.explanation}\n\n${h.why}\n\n${(h.chat||[]).map(m=>`**${m.role==='user'?'You':'Paper Lens'}:** ${m.content}\n\n`).join('')}${h.note?`**Draft / notes:** ${h.note}\n\n`:''}*${h.origin}*\n`).join('\n');
+ const text=format==='json'?JSON.stringify(payload,null,2):`# ${state.title}\n\n${state.summary}\n\n`+state.highlights.map(h=>`## ${h.section} · p. ${h.page} · ${h.category}\n\n> ${h.quote}\n\n${h.explanation}\n\n${h.why}\n\n${h.interesting?`**What is interesting:** ${h.interesting}\n\n**Mechanism:** ${h.mechanism}\n\n**Uncertainty:** ${h.uncertainty}\n\n${(h.evidence||[]).map(e=>`- ${e.role}, p. ${e.page}: ${e.reason}\n  > ${e.quote}\n`).join('')}\n**Questions:**\n${(h.questions||[]).map(q=>`- ${q}`).join('\n')}\n\n`:''}${(h.chat||[]).map(m=>`**${m.role==='user'?'You':'Paper Lens'}:** ${m.content}\n\n`).join('')}${h.note?`**Draft / notes:** ${h.note}\n\n`:''}*${h.origin}*\n`).join('\n');
  const url=URL.createObjectURL(new Blob([text],{type:format==='json'?'application/json':'text/markdown'}));const a=el('a');a.href=url;a.download=state.title.replace(/[^\p{L}\p{N} -]/gu,'').slice(0,90)+'.'+(format==='json'?'json':'md');a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);$('export-dialog').close();
 }
 $('demo').addEventListener('click',async()=>{$('welcome').hidden=true;$('workspace').hidden=false;busy(true);status('Downloading Monitoring Monitorability from arXiv…');try{const r=await fetch('https://arxiv.org/pdf/2512.18311v1');if(!r.ok)throw Error(`arXiv returned HTTP ${r.status}. Try Open PDF with a downloaded copy.`);await openPdf(new Uint8Array(await r.arrayBuffer()),'Monitoring Monitorability',{guide:true});}catch(e){busy(false);status(e.message,true);}});

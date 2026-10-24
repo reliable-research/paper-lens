@@ -1,3 +1,4 @@
+import {verifyDeepGuide} from './insights.mjs';
 // Pure extraction and anchoring: every displayed passage resolves to source text.
 export function normalize(value){
  return String(value).normalize('NFKC').replace(/\u00ad/g,'').replace(/-\s+(?=[a-z])/g,'').replace(/\s+/g,' ').trim();
@@ -73,15 +74,17 @@ export function selectCore(pages,budget=24){
 }
 export function validateAnalysis(data,pages){
  if(!data||!Array.isArray(data.highlights))throw Error('The provider did not return a highlights array.');
- let rejected=0;const highlights=[];const seen=new Set();
+ if(data.pipeline==='deep-v1'){const priorRejected=data.rejected||0;data=verifyDeepGuide(data,(quote,page)=>findQuote(pages,quote,page)?.page===page);data.rejected+=priorRejected;}
+ let rejected=data.rejected||0;const highlights=[];const seen=new Set();
  for(const h of data.highlights){
   if(!h || typeof h.quote!=='string'||typeof h.explanation!=='string'||!h.explanation.trim()){rejected++;continue;}
   const anchor=findQuote(pages,h.quote,Number(h.page));const key=anchor?`${anchor.page}:${anchor.start}`:'';
   if(!anchor||seen.has(key)){rejected++;continue;}seen.add(key);
-  highlights.push({id:`ai-${highlights.length}`,quote:normalize(h.quote),category:['motivation','contribution','method','result','limitation'].includes(h.category)?h.category:'result',section:String(h.section||'Paper'),explanation:h.explanation.slice(0,6000),why:String(h.why||'').slice(0,2000),page:anchor.page,anchor,origin:'AI · quote verified'});
+  const insight=data.pipeline==='deep-v1'?{rank:h.rank,title:h.title,interesting:h.interesting,mechanism:h.mechanism,uncertainty:h.uncertainty,questions:h.questions,evidence:h.evidence.map(e=>({...e,anchor:findQuote(pages,e.quote,e.page)}))}:{};
+  highlights.push({...insight,id:`ai-${highlights.length}`,quote:normalize(h.quote),category:['motivation','contribution','method','result','limitation'].includes(h.category)?h.category:'result',section:String(h.section||'Paper'),explanation:h.explanation.slice(0,6000),why:String(h.why||'').slice(0,2000),page:anchor.page,anchor,origin:'AI · quote verified'});
  }
  if(!highlights.length)throw Error('No verified highlights: the returned quotations could not be anchored to this PDF.');
- return {summary:typeof data.summary==='string'?data.summary.slice(0,6000):'',highlights,rejected};
+ return {summary:typeof data.summary==='string'?data.summary.slice(0,6000):'',highlights,rejected,...(data.pipeline?{pipeline:data.pipeline}:{})};
 }
 
 export function mergeHighlights(next,previous){
@@ -93,5 +96,5 @@ export function mergeHighlights(next,previous){
   if(existing){if(h.note)existing.note=h.note;if(h.chat?.length)existing.chat=h.chat;continue;}
   unique.set(key,{...h,id:`passage-${h.page}-${h.anchor.start}`});
  }
- return [...unique.values()].sort((a,b)=>a.page-b.page||a.anchor.start-b.anchor.start);
+ return [...unique.values()].sort((a,b)=>(a.rank??Infinity)-(b.rank??Infinity)||a.page-b.page||a.anchor.start-b.anchor.start);
 }

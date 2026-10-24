@@ -1,3 +1,4 @@
+import {deepFixture} from './fixtures/deep-guide.mjs';
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -37,7 +38,9 @@ try{
  let apiBody;let mode='valid';
  await page.route('https://arxiv.org/paper-lens-test-api',async route=>{
   apiBody=route.request().postDataJSON();await new Promise(r=>setTimeout(r,300));
-  const data=mode==='valid'?{summary:'Whole-paper provider fixture.',highlights:[{quote:snapshot.quotes[10].quote,page:19,section:'6.1 RL result',category:'result',explanation:'<img src=x onerror=alert(1)> This is literal text, not HTML.',why:'Two runs only.'},{quote:'This quote does not occur anywhere in the PDF.',explanation:'Reject this.'}]}:{highlights:[{quote:'Invented source quotation with no matching passage.',explanation:'Reject.'}]};
+  const {dossier,guide}=deepFixture(snapshot.quotes[10].quote,19,snapshot.quotes[0].quote,snapshot.quotes[0].page);guide.highlights[0].explanation='<img src=x onerror=alert(1)> This is literal text, not HTML.';
+  const first=apiBody.messages[1].content.includes('STAGE 1:');const focus=apiBody.messages[1].content.includes('SELECTED QUOTE (data):');
+  const data=mode==='invalid'?{...dossier,claims:[{...dossier.claims[0],evidence:[{quote:'Invented source quotation with no matching passage.',page:1,role:'supports',reason:'Reject.'}]}]}:first?dossier:focus?{summary:'Focused answer.',highlights:guide.highlights}:{...guide,highlights:[...guide.highlights,{...guide.highlights[0],quote:'This quote does not occur anywhere in the PDF.'}]};
   await route.fulfill({json:{choices:[{message:{content:JSON.stringify(data)}}]}});
  });
  await page.locator('#settings-open').click();await page.locator('#backend').selectOption('api');await page.locator('#api-endpoint').fill('https://arxiv.org/paper-lens-test-api');await page.locator('#api-model').fill('fixture-model');await page.locator('#api-key').fill('fixture-not-a-real-key');await page.locator('#save-settings').click();
@@ -46,14 +49,15 @@ try{
  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('AI analysis complete'));
  assert.ok(apiBody.messages[1].content.includes('[PAGE 90]'));
  assert.ok(apiBody.messages[1].content.includes('[PAGE 1]'));
- assert.match(await page.locator('#status').textContent(),/1 unanchored/);
+ assert.match(await page.locator('#status').textContent(),/1 entries failed/);
  await page.locator('.passage-card').first().click();assert.equal(await page.locator('.inspector img').count(),0);
  assert.equal(await page.locator('#personal-note').inputValue(),'Compare ordinary RL with explicit CoT pressure.');
+ assert.equal(await page.locator('.insight-title').textContent(),'The training objective changes the interpretation of stable monitorability');assert.equal(await page.locator('.evidence-link').count(),2);await page.locator('#search').fill('objective changes the interpretation');assert.equal(await page.locator('.passage-card').count(),1);await page.locator('#search').fill('Could thinking-token');assert.equal(await page.locator('.passage-card').count(),1);await page.locator('#search').fill('');assert.match(await page.locator('.insight-uncertainty').textContent(),/two training runs/);await page.locator('.evidence-link').last().click();await page.waitForFunction(n=>document.getElementById('page-input').value===String(n)&&document.getElementById('explanation-popover').hidden,snapshot.quotes[0].page);assert.ok((await page.evaluate(()=>getSelection().toString())).normalize('NFKC').replace(/\s/g,'').includes(snapshot.quotes[0].quote.slice(0,30).normalize('NFKC').replace(/\s/g,'')));await page.locator('.passage-card').first().click();await page.locator('#personal-note').waitFor();
  await page.locator('#personal-note').fill('What evidence supports this?');await page.locator('#passage-question button[type=submit]').click();await page.waitForFunction(()=>document.querySelectorAll('.chat-message.assistant').length===1);assert.ok(apiBody.messages[1].content.includes('LATEST QUESTION: What evidence supports this?'));assert.ok(apiBody.messages[1].content.includes('[PAGE 90]'));assert.equal(await page.locator('.passage-chat img').count(),0);
- await page.locator('[data-quick-question]').first().click();await page.waitForFunction(()=>document.querySelectorAll('.chat-message.assistant').length===2);assert.ok(apiBody.messages[1].content.includes('What evidence supports this?'));assert.ok(apiBody.messages[1].content.includes('LATEST QUESTION: Explain this passage in plain language.'));
+ await page.locator('[data-quick-question]').first().click();await page.waitForFunction(()=>document.querySelectorAll('.chat-message.assistant').length===2);assert.ok(apiBody.messages[1].content.includes('What evidence supports this?'));assert.ok(apiBody.messages[1].content.includes('LATEST QUESTION: Does direct CoT pressure differ from ordinary RL here?'));
  await page.reload();await page.waitForFunction(()=>window.paperLens?.snapshot.highlights===1);await page.locator('#toggle-header').click();await page.locator('.passage-card').first().click();await page.waitForFunction(()=>document.querySelectorAll('.chat-message.assistant').length===2);
  await page.locator('#personal-note').fill('Compare ordinary RL with explicit CoT pressure.');
- const beforeInvalid=await page.locator('.passage-card').count();mode='invalid';await page.locator('#ai-analyze').click();await page.waitForFunction(()=>document.getElementById('status').textContent.includes('No verified highlights'));assert.equal(await page.locator('.passage-card').count(),beforeInvalid);
+ const beforeInvalid=await page.locator('.passage-card').count();mode='invalid';await page.locator('#ai-analyze').click();await page.waitForFunction(()=>document.getElementById('status').textContent.includes('No evidence-backed claims'));assert.equal(await page.locator('.passage-card').count(),beforeInvalid);
  await page.locator('#zoom-in').click();await page.waitForSelector('.pdf-page[data-page="1"] canvas');
  // User-selected source text gets its own anchored annotation.
  await page.locator('#page-input').fill('1');await page.locator('#page-go').click();

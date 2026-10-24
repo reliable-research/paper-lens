@@ -1,6 +1,6 @@
 # Local Codex: subscription-based paper analysis
 
-Paper Lens 0.2 defaults to **Local Codex**, using the Codex CLI signed in with ChatGPT. No API key is needed. This is a local/open-source integration. It still sends the extracted paper to OpenAI and consumes the signed-in user's subscription allowance; it is not on-device model inference or unlimited usage. If the CLI is signed in with an API key, the companion refuses the request. It never silently switches to API billing.
+Paper Lens 0.5 defaults to **Local Codex**, using the Codex CLI signed in with ChatGPT. No API key is needed. This is a local/open-source integration. It still sends the extracted paper to OpenAI and consumes the signed-in user's subscription allowance; it is not on-device model inference or unlimited usage. If the CLI is signed in with an API key, the companion refuses the request. It never silently switches to API billing.
 
 ## macOS setup
 
@@ -8,7 +8,7 @@ Paper Lens 0.2 defaults to **Local Codex**, using the Codex CLI signed in with C
 2. Load/reload the extension in Chrome. Open its gear icon. **Local Codex** is the default; the setup details show your exact extension ID.
 3. From the repository run `npm run install:companion -- --extension-id YOUR_CHROME_EXTENSION_ID`. For the separate companion ZIP, unzip it and run `node companion/install.mjs --extension-id YOUR_CHROME_EXTENSION_ID` from that extracted folder. If your ID matches the stable development ID in manifest.json, the argument is optional. Pass `--codex /absolute/path/to/codex` if Codex is not on PATH.
 4. Click **Check Codex connection**. It should report **Connected · ChatGPT subscription · no API key**.
-5. Open any PDF or the Monitoring Monitorability demo and click **Analyze with local Codex**. The demo initially shows its included source-checked guide; clicking Analyze generates a fresh Codex guide (or restores a matching cached result).
+5. Open any PDF or the Monitoring Monitorability demo and click **Find insights with local Codex**. The demo initially shows its included source-checked guide; clicking Find insights runs two full-paper passes and generates an evidence-linked guide (or restores a matching cached result).
 
 The installer copies the companion into `~/Library/Application Support/Paper Lens` and registers `org.reliable_research.paper_lens` in `~/Library/Application Support/Google/Chrome/NativeMessagingHosts`. Chrome starts this process only when the extension connects. Node and Codex paths are recorded explicitly so Chrome does not need to inherit your shell PATH. Only the exact extension ID is allowed. Re-running setup replaces this companion registration; run again if you change the extension ID or Node/Codex location. Linux Chrome is also supported by the installer using standard per-user paths; macOS is the tested platform. Other Chromium browsers require separate host registration and are not claimed tested.
 

@@ -15,7 +15,7 @@ const base=process.platform==='darwin'?path.join(os.homedir(),'Library','Applica
 const hosts=process.platform==='darwin'?path.join(os.homedir(),'Library','Application Support','Google','Chrome','NativeMessagingHosts'):path.join(os.homedir(),'.config','google-chrome','NativeMessagingHosts');
 await fs.mkdir(path.join(base,'companion'),{recursive:true,mode:0o700});await fs.mkdir(path.join(base,'src'),{recursive:true,mode:0o700});
 for(const name of ['host.mjs','lib.mjs','runner.mjs'])await fs.copyFile(path.join(root,'companion',name),path.join(base,'companion',name));
-for(const name of ['core.mjs','analysis.mjs'])await fs.copyFile(path.join(root,'src',name),path.join(base,'src',name));
+for(const name of ['core.mjs','analysis.mjs','insights.mjs'])await fs.copyFile(path.join(root,'src',name),path.join(base,'src',name));
 const config={codex,node:process.execPath,allowedOrigins:[`chrome-extension://${id}/`],cacheDir:path.join(base,'cache')};
 await fs.writeFile(path.join(base,'companion','config.json'),JSON.stringify(config,null,2),{mode:0o600});
 const quote=s=>"'"+s.replace(/'/g,"'\\''")+"'";const launcher=path.join(base,'paper-lens-host');

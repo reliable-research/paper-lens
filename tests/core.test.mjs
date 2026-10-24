@@ -44,3 +44,5 @@ test('reanalysis preserves notes and distinct passages without duplicate IDs or 
 });
 
 test('reanalysis preserves passage chat even without notes',()=>{const h={id:'old',page:1,anchor:{start:4},quote:'A source quote',chat:[{role:'user',content:'Why?'},{role:'assistant',content:'Evidence.'}]};const result=mergeHighlights([{...h,id:'new',chat:undefined}], [h]);assert.deepEqual(result[0].chat,h.chat);});
+
+test('deep insight rank survives annotation merging while personal passages remain',()=>{const a={page:1,anchor:{start:0},rank:2},b={page:8,anchor:{start:0},rank:1};assert.deepEqual(mergeHighlights([a,b],[{page:2,anchor:{start:1},origin:'Your highlight'}]).map(h=>h.page),[8,1,2]);});

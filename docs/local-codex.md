@@ -1,6 +1,6 @@
 # Local Codex: subscription-based paper analysis
 
-Paper Lens 0.5 defaults to **Local Codex**, using the Codex CLI signed in with ChatGPT. No API key is needed. This is a local/open-source integration. It still sends the extracted paper to OpenAI and consumes the signed-in user's subscription allowance; it is not on-device model inference or unlimited usage. If the CLI is signed in with an API key, the companion refuses the request. It never silently switches to API billing.
+Paper Lens 0.6 defaults to **Local Codex**, using the Codex CLI signed in with ChatGPT. No API key is needed. This is a local/open-source integration. It still sends the extracted paper to OpenAI and consumes the signed-in user's subscription allowance; it is not on-device model inference or unlimited usage. If the CLI is signed in with an API key, the companion refuses the request. It never silently switches to API billing.
 
 ## macOS setup
 
@@ -42,3 +42,7 @@ Codex app integration guidance: https://learn.chatgpt.com/docs/app-server#auth-e
 ## Test the real paper
 
 `npm run fetch:paper` downloads the ignored, hash-checked PDF. `node scripts/live-codex.mjs` performs a real analysis through the installed native host using your current subscription. It writes local-only `test-results/live-codex-result.json` and `live-codex-report.json`. It consumes subscription usage only on a cache miss. `npm run test:browser` checks viewer/API regression behavior; `node tests/native-browser.mjs` checks the installed host and cached real result inside Chrome. No authentication tokens are exported or committed.
+
+### Method-depth checkpoints and diagnostics
+
+The companion privately caches the source-checked argument/method dossier under the same content/interests/model/version key as the final guide. If the review fails validation, a later attempt can resume from that dossier after checking its quotations again. Rejected review drafts are saved separately as `*.rejected-review.json` for diagnosis, never treated as successful annotations. These files contain generated interpretations and short source excerpts, not login credentials; they remain in the local companion cache and are not packaged or pushed. Delete the companion cache directory to remove final results, checkpoints and diagnostics. Cancellation does not automatically retry a request.

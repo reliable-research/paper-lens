@@ -80,11 +80,11 @@ export function validateAnalysis(data,pages){
   if(!h || typeof h.quote!=='string'||typeof h.explanation!=='string'||!h.explanation.trim()){rejected++;continue;}
   const anchor=findQuote(pages,h.quote,Number(h.page));const key=anchor?`${anchor.page}:${anchor.start}`:'';
   if(!anchor||seen.has(key)){rejected++;continue;}seen.add(key);
-  const insight=data.pipeline==='deep-v1'?{rank:h.rank,title:h.title,interesting:h.interesting,mechanism:h.mechanism,uncertainty:h.uncertainty,questions:h.questions,evidence:h.evidence.map(e=>({...e,anchor:findQuote(pages,e.quote,e.page)}))}:{};
+  const insight=data.pipeline==='deep-v1'?{method:h.method,methodAssessment:h.methodAssessment,rank:h.rank,title:h.title,interesting:h.interesting,mechanism:h.mechanism,uncertainty:h.uncertainty,questions:h.questions,evidence:h.evidence.map(e=>({...e,anchor:findQuote(pages,e.quote,e.page)}))}:{};
   highlights.push({...insight,id:`ai-${highlights.length}`,quote:normalize(h.quote),category:['motivation','contribution','method','result','limitation'].includes(h.category)?h.category:'result',section:String(h.section||'Paper'),explanation:h.explanation.slice(0,6000),why:String(h.why||'').slice(0,2000),page:anchor.page,anchor,origin:'AI · quote verified'});
  }
  if(!highlights.length)throw Error('No verified highlights: the returned quotations could not be anchored to this PDF.');
- return {summary:typeof data.summary==='string'?data.summary.slice(0,6000):'',highlights,rejected,...(data.pipeline?{pipeline:data.pipeline}:{})};
+ return {summary:typeof data.summary==='string'?data.summary.slice(0,6000):'',highlights,rejected,...(data.pipeline?{pipeline:data.pipeline,methodCount:highlights.filter(h=>h.method).length}:{})};
 }
 
 export function mergeHighlights(next,previous){

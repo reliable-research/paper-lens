@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';import path from 'node:path';import os from 'n
 import {validateRequest,cacheKey,codexEnvironment,codexArguments} from './lib.mjs';
 import {analysisPrompt,analysisSchema} from '../src/analysis.mjs';
 import {normalize} from '../src/core.mjs';
-import {dossierSchema,deepGuideSchema,dossierPrompt,reviewPrompt,verifyDossier,verifyDeepGuide} from '../src/insights.mjs';
+import {dossierSchema,deepGuideSchema,dossierPrompt,reviewPrompt,verifyDossier,verifyDeepGuide,materializeMethods} from '../src/insights.mjs';
 function terminate(child,signal='SIGTERM'){try{if(process.platform!=='win32')process.kill(-child.pid,signal);else child.kill(signal);}catch{}}
 async function execute(binary,args,{input='',signal,onEvent=()=>{},timeout=900000}={}){
  return new Promise((resolve,reject)=>{
@@ -25,8 +25,8 @@ export async function subscriptionStatus(config){
  if(!/Logged in using ChatGPT/i.test(out+err))throw Error('Local Codex requires ChatGPT subscription sign-in. Run codex login and choose ChatGPT. API-key login is not used.');
  return {auth:'chatgpt',ready:true};
 }
-function verifiedResult(data,pages,deep=false){
- if(deep)return verifyDeepGuide(data,(quote,page)=>typeof quote==='string'&&normalize(quote).length>=12&&pages[page-1]?.page===page&&normalize(pages[page-1].text).includes(normalize(quote)));
+function verifiedResult(data,pages,deep=false,requireMethods=false){
+ if(deep)return verifyDeepGuide(data,(quote,page)=>typeof quote==='string'&&normalize(quote).length>=12&&pages[page-1]?.page===page&&normalize(pages[page-1].text).includes(normalize(quote)),{requireMethods});
  if(!data||typeof data.summary!=='string'||!Array.isArray(data.highlights))throw Error('Codex returned an invalid reading guide.');
  const seen=new Set();let rejected=0;const highlights=[];
  for(const h of data.highlights){const page=pages[h?.page-1];if(!page||typeof h?.quote!=='string'||!h.explanation?.trim()||normalize(h.quote).length<12||!normalize(page.text).includes(normalize(h.quote))){rejected++;continue;}const key=`${h.page}:${normalize(h.quote)}`;if(seen.has(key)){rejected++;continue;}seen.add(key);highlights.push(h);}
@@ -50,8 +50,12 @@ export async function runCodex(input,config,{signal,onProgress=()=>{}}={}){
   if(request.focus)result=verifiedResult(await stage('answering question',analysisPrompt(request),analysisSchema),request.pages);
   else{
    const locate=(quote,page)=>typeof quote==='string'&&normalize(quote).length>=12&&request.pages[page-1]?.page===page&&normalize(request.pages[page-1].text).includes(normalize(quote));
-   const dossier=verifyDossier(await stage('1/2 · reconstructing argument and evidence',dossierPrompt(request),dossierSchema),locate);
-   result=verifiedResult(await stage('2/2 · challenging and ranking insights',reviewPrompt(request,dossier),deepGuideSchema),request.pages,true);result.dossierRejected=dossier.rejected;
+   const dossierFile=path.join(config.cacheDir,key+'.dossier.json');let dossier,resumedDossier=false;
+   try{const stored=JSON.parse(await fs.readFile(dossierFile,'utf8'));dossier=verifyDossier(stored,locate);dossier.rejected+=(stored.rejected||0);usage=stored.usage||null;resumedDossier=true;onProgress({stage:'1/2 · source-checked method dossier restored',pages:request.pages.length});}catch{}
+   if(!dossier){dossier=verifyDossier(await stage('1/2 · reconstructing argument and evidence',dossierPrompt(request),dossierSchema),locate);await fs.mkdir(config.cacheDir,{recursive:true,mode:0o700});await fs.writeFile(dossierFile,JSON.stringify({...dossier,usage}),{mode:0o600});}
+   const draft=await stage('2/2 · challenging and ranking insights',reviewPrompt(request,dossier),deepGuideSchema);
+   try{result=verifiedResult(materializeMethods(draft,dossier),request.pages,true,dossier.methods.length>0);}catch(error){await fs.mkdir(config.cacheDir,{recursive:true,mode:0o700});await fs.writeFile(path.join(config.cacheDir,key+'.rejected-review.json'),JSON.stringify({error:error.message,draft}),{mode:0o600});throw error;}
+   result.dossierRejected=dossier.rejected;result.resumedDossier=resumedDossier;
   }
   if(signal?.aborted)throw Error('Cancelled.');
   await fs.mkdir(config.cacheDir,{recursive:true,mode:0o700});await fs.writeFile(file,JSON.stringify({...result,usage}),{mode:0o600});

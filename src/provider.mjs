@@ -1,6 +1,6 @@
 import {validateAnalysis,findQuote} from './core.mjs';
 import {analysisPrompt,analysisSchema} from './analysis.mjs';
-import {dossierPrompt,reviewPrompt,verifyDossier,verifyDeepGuide,dossierSchema,deepGuideSchema} from './insights.mjs';
+import {dossierPrompt,reviewPrompt,verifyDossier,verifyDeepGuide,dossierSchema,deepGuideSchema,materializeMethods} from './insights.mjs';
 export function providerUrl(value){
  const u=new URL(value);
  if(u.protocol!=='https:' && !(u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname)))throw Error('Use HTTPS or a localhost endpoint.');
@@ -22,6 +22,6 @@ export async function analyzeWithProvider({pages,settings,signal,focus,question,
  const locate=(quote,page)=>findQuote(pages,quote,page)?.page===page;
  onProgress({stage:'1/2 · reconstructing argument and evidence',pages:pages.length});const dossier=verifyDossier(await complete(dossierPrompt(request),dossierSchema),locate);
  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
- onProgress({stage:'2/2 · challenging and ranking insights',pages:pages.length});const guide=verifyDeepGuide(await complete(reviewPrompt(request,dossier),deepGuideSchema),locate);
+ onProgress({stage:'2/2 · challenging and ranking insights',pages:pages.length});const draft=await complete(reviewPrompt(request,dossier),deepGuideSchema);const guide=verifyDeepGuide(materializeMethods(draft,dossier),locate,{requireMethods:dossier.methods.length>0});
  return {...validateAnalysis(guide,pages),dossierRejected:dossier.rejected};
 }

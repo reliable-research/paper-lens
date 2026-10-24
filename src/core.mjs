@@ -85,12 +85,12 @@ export function validateAnalysis(data,pages){
 }
 
 export function mergeHighlights(next,previous){
- const retained=previous.filter(h=>h.note||h.origin==='Your highlight');
+ const retained=previous.filter(h=>h.note||h.chat?.length||h.origin==='Your highlight');
  const unique=new Map();
  for(const h of [...next,...retained]){
   const key=`${h.page}:${h.anchor.start}`;
   const existing=unique.get(key);
-  if(existing){if(h.note)existing.note=h.note;continue;}
+  if(existing){if(h.note)existing.note=h.note;if(h.chat?.length)existing.chat=h.chat;continue;}
   unique.set(key,{...h,id:`passage-${h.page}-${h.anchor.start}`});
  }
  return [...unique.values()].sort((a,b)=>a.page-b.page||a.anchor.start-b.anchor.start);

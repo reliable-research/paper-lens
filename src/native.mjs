@@ -16,8 +16,8 @@ export function nativeRequest(action,payload={}, {signal,onProgress=()=>{},runti
   }catch(e){finish(e);}
  });
 }
-export async function analyzeWithCodex({pages,settings,signal,focus,onProgress}){
- const raw=await nativeRequest('analyze',{pages:pages.map(({page,text})=>({page,text})),interests:settings.interests||'',focus:focus||'',model:settings.codexModel||''},{signal,onProgress});
+export async function analyzeWithCodex({pages,settings,signal,focus,onProgress,question,history}){
+ const raw=await nativeRequest('analyze',{pages:pages.map(({page,text})=>({page,text})),interests:settings.interests||'',focus:focus||'',model:settings.codexModel||'',...(question?{question,history:history||''}:{})},{signal,onProgress});
  const result=validateAnalysis(raw,pages);for(const h of result.highlights)h.origin=`Local Codex · quote verified${raw.cached?' · cached':''}`;
  return {...result,rejected:(raw.rejected||0)+result.rejected,cached:!!raw.cached,auth:raw.auth,usage:raw.usage,cacheKey:raw.cacheKey};
 }

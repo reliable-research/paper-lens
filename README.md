@@ -70,3 +70,9 @@ Without a downloaded source PDF the real-paper integration test is explicitly sk
 `npm test` checks normalization, source anchoring, hallucinated quote rejection, section coverage including post-reference appendices, reanalysis note merges, complete provider requests and context-limit refusal. `test:browser` loads the real Manifest V3 extension in an isolated Playwright Chromium profile and checks the 90-page source, all guide-page highlight geometry, source clicks, notes/reload, filters, JSON export, local analysis, zoom and a mocked full-paper provider. The API mock verifies transport and UI behavior. The separate live-Codex/native-browser tests exercise the real local subscription integration; see docs/verification.md. See `test-results/browser-report.json` and screenshots after running.
 
 The source PDF is not redistributed in this repository or package. The demo downloads it directly from https://arxiv.org/pdf/2512.18311v1. `scripts/extract.mjs` regenerates extracted text; `scripts/build-guide.mjs` checks all curated quote anchors. The PDF's original license/attribution remain with its authors; see THIRD_PARTY.md.
+
+### Passage conversations
+
+Select text and choose **Discuss selection**, or hover/click an existing highlight. The popup offers three quick questions and a chat box. Questions use the whole PDF and recent conversation through the configured local Codex subscription (default) or API backend. Answers and drafts are saved with each passage and survive reload/reanalysis. Suggested questions are local category-based shortcuts; answers are generated after you choose one or send your own question.
+
+Upgrading from 0.3: reload the unpacked extension and rerun `npm run install:companion -- --extension-id <your-extension-id>` so local Codex receives the new question/history fields.

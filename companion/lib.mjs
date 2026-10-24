@@ -10,9 +10,9 @@ export function validateRequest(input){
  if(!input||!Array.isArray(input.pages)||!input.pages.length||input.pages.length>5000)throw Error('Supply 1–5000 extracted pages.');
  let chars=0;const pages=input.pages.map((p,i)=>{if(p.page!==i+1||typeof p.text!=='string')throw Error('Pages must be consecutive, numbered from 1.');chars+=p.text.length;return {page:p.page,text:p.text};});
  if(chars>600000||chars<1)throw Error('Paper text exceeds the 600,000-character limit or is empty. No text was sent.');
- for(const field of ['focus','interests','model'])if(input[field]!==undefined&&typeof input[field]!=='string')throw Error('Invalid '+field);
- const {interests='',focus='',model=''}=input;if(interests.length>4000||focus.length>6000)throw Error('Interests or selection too long.');if(model&&!/^[a-zA-Z0-9][\w.:-]{0,99}$/.test(model))throw Error('Invalid model ID.');
- return {pages,interests,focus,model};
+ for(const field of ['focus','interests','model','question','history'])if(input[field]!==undefined&&typeof input[field]!=='string')throw Error('Invalid '+field);
+ const {interests='',focus='',model='',question='',history=''}=input;if(question.length>1000||history.length>3000)throw Error('Conversation too long.');if(interests.length>4000||focus.length>6000)throw Error('Interests or selection too long.');if(model&&!/^[a-zA-Z0-9][\w.:-]{0,99}$/.test(model))throw Error('Invalid model ID.');
+ return {pages,interests,focus,model,...(question?{question,history}:{})};
 }
 export function cacheKey(request){return createHash('sha256').update(JSON.stringify({version:ANALYSIS_VERSION,...validateRequest(request)})).digest('hex');}
 export function codexEnvironment(source=process.env){

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {normalize, buildPage, findQuote, extractSentences, selectCore, validateAnalysis} from '../src/core.mjs';
+import {normalize, buildPage, findQuote, extractSentences, selectCore, validateAnalysis, mergeHighlights} from '../src/core.mjs';
 
 test('normalizes PDF ligatures, line hyphenation and whitespace',()=>{
  assert.equal(normalize('We ﬁnd moni-\ntorability   improves.'),'We find monitorability improves.');
@@ -42,3 +42,5 @@ test('reanalysis preserves notes and distinct passages without duplicate IDs or 
  const fresh=[{id:'ai-0',page:1,anchor:{start:4},explanation:'Updated'}];
  const result=mergeHighlights(fresh,old);assert.equal(result.length,2);assert.equal(result[0].note,'Keep this');assert.equal(result[0].explanation,'Updated');assert.equal(new Set(result.map(x=>x.id)).size,2);
 });
+
+test('reanalysis preserves passage chat even without notes',()=>{const h={id:'old',page:1,anchor:{start:4},quote:'A source quote',chat:[{role:'user',content:'Why?'},{role:'assistant',content:'Evidence.'}]};const result=mergeHighlights([{...h,id:'new',chat:undefined}], [h]);assert.deepEqual(result[0].chat,h.chat);});

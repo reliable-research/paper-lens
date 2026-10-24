@@ -30,3 +30,11 @@ Public repository adaptation: demo downloads from arXiv on demand; browser tests
 ## Explanation interactions 0.3.1
 
 - Browser checks cover hover and click, moving into the popup, automatic dismissal after leaving, and absence of duplicated source headings and quotes.
+
+## Passage conversations 0.4
+
+- Quick prompts, free-text questions, follow-up context, all-page context, escaped answer text, and conversation reload are covered by browser tests using a controlled provider response.
+- Conversation retention during reanalysis is covered by a unit test. The native Codex path reuses the existing selected-passage analysis protocol; the companion accepts explicit question/history fields and its prompt directs Codex to answer the question.
+
+- Live uncached ChatGPT-subscription test sent all 90 pages with an explicit faithfulness/monitorability question. Codex returned one verified selected quote and directly answered that full faithfulness is unnecessary, with scope qualifications. Native auth was `chatgpt`; no API key. Local companion updated in place.
+- 20 unit/integration checks passed; layout and browser regression cover the two-section popup, follow-up answers and persistence.

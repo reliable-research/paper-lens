@@ -14,7 +14,7 @@
  </div>
 </section>
 <section class="inspector" id="explanation-popover" role="dialog" aria-label="Passage explanation" hidden><div id="inspector-content"></div></section>
-<button id="selection-add" hidden>＋ Highlight & explain</button>
+<button id="selection-add" hidden>＋ Discuss selection</button>
 <dialog id="settings"><form method="dialog"><div class="dialog-heading"><h2>Choose your AI</h2><button aria-label="Close settings" value="cancel">×</button></div>
 <label>Analysis provider<select id="backend"><option value="codex">Local Codex · ChatGPT subscription (default)</option><option value="api">API endpoint · optional</option></select></label>
 <div id="codex-settings"><p>Use the Codex CLI already signed in on this Mac. No API key is needed. Analyzing a paper sends its extracted text to OpenAI through Codex and uses your subscription allowance.</p><p id="companion-setup" class="fine">Install the Paper Lens companion once, then click Check connection. It connects only to this extension.</p><label>Codex model (optional)<input id="codex-model" placeholder="Leave blank for the Codex default"></label><button id="check-codex" type="button">Check Codex connection</button><p id="connection-status" role="status"></p><details><summary>Companion setup</summary><p class="fine">Install Codex CLI and run <code>codex login</code> using ChatGPT. From the Paper Lens repository run:</p><pre id="setup-command"></pre><p class="fine">A Web Store installation also requires this local companion. The store extension cannot install or execute Codex by itself. No always-running web server is needed.</p></details></div>

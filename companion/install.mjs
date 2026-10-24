@@ -1,0 +1,25 @@
+import fs from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import {createHash} from 'node:crypto';import {fileURLToPath} from 'node:url';import {spawnSync} from 'node:child_process';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+if(!['darwin','linux'].includes(process.platform))throw Error('This installer currently supports macOS and Linux.');
+const manifest=JSON.parse(await fs.readFile(path.join(root,'manifest.json'),'utf8'));
+const devId=createHash('sha256').update(Buffer.from(manifest.key,'base64')).digest('hex').slice(0,32).replace(/[0-9a-f]/g,c=>String.fromCharCode(97+parseInt(c,16)));
+const pos=process.argv.indexOf('--extension-id');const id=pos>=0?process.argv[pos+1]:devId;
+if(!/^[a-p]{32}$/.test(id||''))throw Error('Use --extension-id with the exact 32-character Chrome extension ID.');
+const codexPos=process.argv.indexOf('--codex');let codex=codexPos>=0?process.argv[codexPos+1]:null;
+if(!codex){for(const dir of (process.env.PATH||'').split(path.delimiter)){const candidate=path.join(dir,'codex');try{await fs.access(candidate,fs.constants.X_OK);codex=candidate;break;}catch{}}}
+if(!codex||!path.isAbsolute(codex))throw Error('Install Codex CLI or pass --codex /absolute/path/to/codex.');
+const clean={...process.env};for(const key of Object.keys(clean))if(/API_KEY|ACCESS_TOKEN|AUTH_TOKEN/.test(key))delete clean[key];
+const login=spawnSync(codex,['login','status'],{env:clean,encoding:'utf8'});
+if(login.status!==0||!/Logged in using ChatGPT/i.test((login.stdout||'')+(login.stderr||'')))throw Error('Run codex login and choose ChatGPT subscription sign-in before installing.');
+const base=process.platform==='darwin'?path.join(os.homedir(),'Library','Application Support','Paper Lens'):path.join(os.homedir(),'.local','share','paper-lens');
+const hosts=process.platform==='darwin'?path.join(os.homedir(),'Library','Application Support','Google','Chrome','NativeMessagingHosts'):path.join(os.homedir(),'.config','google-chrome','NativeMessagingHosts');
+await fs.mkdir(path.join(base,'companion'),{recursive:true,mode:0o700});await fs.mkdir(path.join(base,'src'),{recursive:true,mode:0o700});
+for(const name of ['host.mjs','lib.mjs','runner.mjs'])await fs.copyFile(path.join(root,'companion',name),path.join(base,'companion',name));
+for(const name of ['core.mjs','analysis.mjs'])await fs.copyFile(path.join(root,'src',name),path.join(base,'src',name));
+const config={codex,node:process.execPath,allowedOrigins:[`chrome-extension://${id}/`],cacheDir:path.join(base,'cache')};
+await fs.writeFile(path.join(base,'companion','config.json'),JSON.stringify(config,null,2),{mode:0o600});
+const quote=s=>"'"+s.replace(/'/g,"'\\''")+"'";const launcher=path.join(base,'paper-lens-host');
+await fs.writeFile(launcher,`#!/bin/sh\nexec ${quote(process.execPath)} ${quote(path.join(base,'companion','host.mjs'))} "$@"\n`,{mode:0o700});await fs.chmod(launcher,0o700);
+await fs.mkdir(hosts,{recursive:true});const hostManifest=path.join(hosts,'org.reliable_research.paper_lens.json');
+await fs.writeFile(hostManifest,JSON.stringify({name:'org.reliable_research.paper_lens',description:'Paper Lens local Codex companion',path:launcher,type:'stdio',allowed_origins:config.allowedOrigins},null,2),{mode:0o600});
+console.log(JSON.stringify({installed:true,extensionId:id,hostManifest,launcher,configFile:path.join(base,'companion','config.json')},null,2));

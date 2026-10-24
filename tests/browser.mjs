@@ -39,7 +39,7 @@ try{
   const data=mode==='valid'?{summary:'Whole-paper provider fixture.',highlights:[{quote:snapshot.quotes[10].quote,page:19,section:'6.1 RL result',category:'result',explanation:'<img src=x onerror=alert(1)> This is literal text, not HTML.',why:'Two runs only.'},{quote:'This quote does not occur anywhere in the PDF.',explanation:'Reject this.'}]}:{highlights:[{quote:'Invented source quotation with no matching passage.',explanation:'Reject.'}]};
   await route.fulfill({json:{choices:[{message:{content:JSON.stringify(data)}}]}});
  });
- await page.locator('#settings-open').click();await page.locator('#api-endpoint').fill('https://arxiv.org/paper-lens-test-api');await page.locator('#api-model').fill('fixture-model');await page.locator('#api-key').fill('fixture-not-a-real-key');await page.locator('#save-settings').click();
+ await page.locator('#settings-open').click();await page.locator('#backend').selectOption('api');await page.locator('#api-endpoint').fill('https://arxiv.org/paper-lens-test-api');await page.locator('#api-model').fill('fixture-model');await page.locator('#api-key').fill('fixture-not-a-real-key');await page.locator('#save-settings').click();
  await page.locator('#ai-analyze').click();await page.waitForFunction(()=>document.getElementById('status').textContent.includes('Sending all'));
  assert.equal(await page.locator('#zoom-in').isDisabled(),true);await page.locator('.passage-card').first().click();assert.equal(await page.locator('[data-ai-explain]').isDisabled(),true);
  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('AI analysis complete'));

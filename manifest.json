@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Paper Lens \u2014 Read the argument",
-  "version": "0.1.0",
+  "name": "Paper Lens — Read the argument",
+  "version": "0.2.0",
   "description": "Read full PDFs with anchored core passages, explanations and notes. Includes Monitoring Monitorability.",
   "minimum_chrome_version": "140",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "https://arxiv.org/*"
@@ -24,5 +25,6 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; worker-src 'self';"
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnXkDJ9rAMhSyDV8TG2IqH349Oh9DS9JThuLvFEu9HJ6jbxcegErWe5cDUTY8xVbonU4k2VflZfsYNHJe2niJimdvYGA4QriaXnsQZH1sjiG0Sszn7AzMHrbblm7LQkazyn5bnBkZ+Rs1fsL/jiG/tZsd3rnbdVvGn40mxn6lDNu1cUqidagyFsOGbZWVHYN7ha0iC3KGVCy+NMQFrUKgkaxXOhQStCxClS4nj4ABZyMGqavy9EBLI4uHR7UJoZ2l42/SjzPAP8Fwul3Wvvr05njS4YT3OPX6p8avDNMUyaYOoJtQvWO5qX6L6FQanosrs2eWr4VFnl2WHPfmFb7PHwIDAQAB"
 }

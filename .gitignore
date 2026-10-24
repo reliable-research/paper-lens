@@ -225,3 +225,5 @@ test-results/
 fixtures/*.pdf
 fixtures/extracted.*
 .DS_Store
+companion/config.json
+companion/cache/

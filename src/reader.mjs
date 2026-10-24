@@ -1,6 +1,7 @@
 import * as pdfjs from '../vendor/pdf.mjs';
 import {buildPage,findQuote,anchorRange,selectCore,normalize,mergeHighlights} from './core.mjs';
 import {analyzeWithProvider,providerUrl} from './provider.mjs';
+import {analyzeWithCodex,nativeRequest} from './native.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('../vendor/pdf.worker.mjs',import.meta.url).href;
 const $=id=>document.getElementById(id);
 const cats=['motivation','contribution','method','result','limitation'];
@@ -9,7 +10,7 @@ let sessionKey='',pendingSelection=null,observer=null;
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function safeJSON(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}}
-function settings(){return {...safeJSON('paper-lens-settings',{}),key:sessionKey||safeJSON('paper-lens-key','')};}
+function settings(){return {backend:'codex',...safeJSON('paper-lens-settings',{}),key:sessionKey||safeJSON('paper-lens-key','')};}
 function save(){if(!state.fingerprint)return;try{localStorage.setItem('paper-lens:'+state.fingerprint,JSON.stringify({title:state.title,summary:state.summary,highlights:state.highlights,selected:state.selected}));}catch{status('Browser storage is full. Export your notes before closing this tab.',true);}}
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('paper-lens',1);r.onupgradeneeded=()=>r.result.createObjectStore('pdfs');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 async function cachePdf(bytes,name){const d=await db();await new Promise((resolve,reject)=>{const t=d.transaction('pdfs','readwrite');t.objectStore('pdfs').put({bytes,name},'last');t.oncomplete=resolve;t.onerror=()=>reject(t.error);});d.close();}
@@ -24,7 +25,7 @@ async function openPdf(bytes,name,{guide=false}={}){
   const original=bytes.slice();const old=state.pdf;state.pdf=null;await old?.loadingTask.destroy();
   const pdf=await pdfjs.getDocument({data:bytes,useSystemFonts:true,isEvalSupported:false}).promise;
   if(epoch!==state.epoch){await pdf.loadingTask.destroy();return;}
-  state.pdf=pdf;const extracted=[];
+  state.pdf=pdf;state.documentHash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',original))].map(x=>x.toString(16).padStart(2,'0')).join('');if(epoch!==state.epoch)return;const extracted=[];
   for(let n=1;n<=pdf.numPages;n++){
    if(epoch!==state.epoch)return;
    const page=await pdf.getPage(n);const text=await page.getTextContent();
@@ -74,18 +75,19 @@ async function renderPage(n,epoch=state.epoch){
   const content=await page.getTextContent();const layer=el('div','textLayer');box.append(layer);const textLayer=new pdfjs.TextLayer({textContentSource:content,container:layer,viewport});await Promise.all([task.promise,textLayer.render()]);
   if(epoch!==state.epoch)return;
   box.querySelector('.page-loading')?.remove();const overlay=el('div','highlight-layer');box.append(overlay);
-  const result={box,canvas,textLayer,overlay,task};state.rendered.set(n,result);drawHighlights(n);return result;
+  const result={box,canvas,textLayer,overlay,task,viewport};state.rendered.set(n,result);drawHighlights(n);return result;
  })();state.rendering.set(n,job);try{return await job;}finally{if(state.rendering.get(n)===job)state.rendering.delete(n);}
 }
 function visibleHighlights(){const q=$('search').value.toLowerCase();return state.highlights.filter(h=>(state.filter==='all'||h.category===state.filter)&&(!q||[h.quote,h.explanation,h.section,h.note||''].join(' ').toLowerCase().includes(q)));}
-function drawHighlights(n){
+function drawHighlights(n,all=false){
  const r=state.rendered.get(n);if(!r)return;r.overlay.replaceChildren();const bounds=r.box.getBoundingClientRect();
- for(const h of visibleHighlights().filter(h=>h.page===n)){
-  let first=true;
+ for(const h of (all?state.highlights:visibleHighlights()).filter(h=>h.page===n)){
+  let first=true;const pdfRects=[];
   for(const part of h.anchor.parts){const span=r.textLayer.textDivs[part.item];const node=span?.firstChild;if(!node||node.nodeType!==Node.TEXT_NODE)continue;
    const range=document.createRange();range.setStart(node,Math.min(part.start,node.length));range.setEnd(node,Math.min(part.end,node.length));
-   for(const rect of range.getClientRects()){if(rect.width<1||rect.height<1)continue;const mark=el('button',`highlight-rect ${h.category}${h.id===state.selected?' selected':''}`);mark.dataset.id=h.id;mark.title=h.explanation;mark.setAttribute('aria-label',`${h.category}: ${h.quote}`);mark.tabIndex=first?0:-1;first=false;Object.assign(mark.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});mark.addEventListener('click',()=>selectHighlight(h.id,false));r.overlay.append(mark);}
+   for(const rect of range.getClientRects()){if(rect.width<1||rect.height<1)continue;const a=r.viewport.convertToPdfPoint(rect.left-bounds.left,rect.top-bounds.top),b=r.viewport.convertToPdfPoint(rect.right-bounds.left,rect.bottom-bounds.top);pdfRects.push({x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(a[0]-b[0]),height:Math.abs(a[1]-b[1])});const mark=el('button',`highlight-rect ${h.category}${h.id===state.selected?' selected':''}`);mark.dataset.id=h.id;mark.title=h.explanation;mark.setAttribute('aria-label',`${h.category}: ${h.quote}`);mark.tabIndex=first?0:-1;first=false;Object.assign(mark.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});mark.addEventListener('click',()=>selectHighlight(h.id,false));r.overlay.append(mark);}
   }
+  h.geometry={page:n,coordinateSystem:'PDF points; origin at bottom-left',rects:pdfRects};
  }
 }
 function redraw(){for(const n of state.rendered.keys())drawHighlights(n);}
@@ -120,24 +122,31 @@ async function loadUrl(value){
  let u=new URL(value);if(u.hostname==='arxiv.org'&&u.pathname.startsWith('/abs/'))u.pathname=u.pathname.replace('/abs/','/pdf/');
  if(u.protocol!=='https:')throw Error('Use an HTTPS PDF URL, or Open PDF for a local file.');await permissionFor(u.href);$('url-dialog').close();$('welcome').hidden=true;$('workspace').hidden=false;status('Downloading PDF…');const response=await fetch(u.href);if(!response.ok)throw Error(`PDF download returned HTTP ${response.status}.`);const data=new Uint8Array(await response.arrayBuffer());if(new TextDecoder().decode(data.slice(0,1024)).indexOf('%PDF-')<0)throw Error('The link did not return a PDF. Open a direct PDF link or choose a local file.');await openPdf(data,u.pathname.split('/').pop()||'Paper');
 }
-function openSettings(){const s=settings();$('api-endpoint').value=s.endpoint||'';$('api-model').value=s.model||'';$('api-key').value=s.key||'';$('interests').value=s.interests||'';$('remember-key').checked=!!safeJSON('paper-lens-key','');$('settings-status').textContent='';$('settings').showModal();}
+function updateBackendUI(){const backend=$('backend').value;$('codex-settings').hidden=backend!=='codex';$('api-settings').hidden=backend!=='api';}
+function updateAnalysisLabel(){$('ai-analyze').textContent=settings().backend==='api'?'Analyze with API ✦':'Analyze with local Codex ✦';}
+function openSettings(){const s=settings();$('backend').value=s.backend;$('codex-model').value=s.codexModel||'';$('api-endpoint').value=s.endpoint||'';$('api-model').value=s.model||'';$('api-key').value=s.key||'';$('interests').value=s.interests||'';$('remember-key').checked=!!safeJSON('paper-lens-key','');$('settings-status').textContent='';$('connection-status').textContent='';$('setup-command').textContent=`npm run install:companion -- --extension-id ${chrome.runtime.id}`;updateBackendUI();$('settings').showModal();}
 async function runAI(focus){
  if(state.loading)return;
- const s=settings();if(!s.endpoint||!s.model){openSettings();return;}
+ const s=settings();if(s.backend==='api'&&(!s.endpoint||!s.model)){openSettings();return;}
  const epoch=state.epoch;const targetFingerprint=state.fingerprint;busy(true);
  try{
-  providerUrl(s.endpoint);await permissionFor(s.endpoint);if(epoch!==state.epoch)return;
-  state.controller?.abort();const controller=new AbortController();state.controller=controller;const timer=setTimeout(()=>controller.abort(),180000);busy(true);status(`Sending all ${state.pages.length} pages to ${new URL(s.endpoint).hostname} for ${focus?'selected-passage explanation':'whole-paper analysis'}…`);
-  let result;try{result=await analyzeWithProvider({pages:state.pages,settings:s,signal:controller.signal,focus:focus?.quote});}finally{clearTimeout(timer);}
+  if(s.backend==='api'){providerUrl(s.endpoint);await permissionFor(s.endpoint);}if(epoch!==state.epoch)return;
+  state.controller?.abort();const controller=new AbortController();state.controller=controller;$('cancel-analysis').hidden=false;
+  const local=s.backend!=='api';status(local?`Local Codex is analyzing all ${state.pages.length} pages using your ChatGPT subscription…`:`Sending all ${state.pages.length} pages to ${new URL(s.endpoint).hostname}…`);
+  let result;
+  if(local)result=await analyzeWithCodex({pages:state.pages,settings:s,signal:controller.signal,focus:focus?.quote,onProgress:p=>{if(epoch===state.epoch)status(`Local Codex · ${p.stage} · ${p.pages} pages · ChatGPT subscription`);}});
+  else{const timer=setTimeout(()=>controller.abort(),180000);try{result=await analyzeWithProvider({pages:state.pages,settings:s,signal:controller.signal,focus:focus?.quote});}finally{clearTimeout(timer);}}
+
   if(epoch!==state.epoch||targetFingerprint!==state.fingerprint)return;
   if(focus){const replacement=result.highlights.find(h=>normalize(h.quote)===normalize(focus.quote));if(!replacement)throw Error('AI did not return the selected source quote. Existing explanation was kept.');focus.explanation=replacement.explanation;focus.why=replacement.why;focus.origin=replacement.origin;}
   else{state.highlights=mergeHighlights(result.highlights,state.highlights);state.summary=result.summary;state.filter='all';state.selected=null;}
   save();renderList();redraw();if(focus)renderInspector(focus);else $('inspector-content').replaceChildren(el('p','muted','Choose a highlighted passage to read its explanation.'));
-  status(`AI analysis complete · ${result.highlights.length} verified source quotes${result.rejected?` · ${result.rejected} unanchored/duplicate entries rejected`:''}. Explanations are generated; verify against the paper.`);
- }catch(e){if(epoch===state.epoch)status(e.name==='AbortError'?'AI request timed out or was cancelled. Existing annotations were kept.':e.message,true);}finally{if(epoch===state.epoch)busy(false);}
+  status(`${local?'Local Codex':'AI'} analysis complete${result.cached?' (cached)':''} · ${result.highlights.length} verified source quotes${result.rejected?` · ${result.rejected} unanchored/duplicate entries rejected`:''}. Explanations are generated; verify against the paper.`);
+ }catch(e){if(epoch===state.epoch)status(e.name==='AbortError'?'AI request timed out or was cancelled. Existing annotations were kept.':e.message,true);}finally{if(epoch===state.epoch){busy(false);$('cancel-analysis').hidden=true;}}
 }
-function exportNotes(format){
- const payload={schema:'paper-lens/v1',title:state.title,fingerprint:state.fingerprint,pages:state.pages.length,summary:state.summary,highlights:state.highlights};
+async function exportNotes(format){
+ const epoch=state.epoch;for(const n of new Set(state.highlights.map(h=>h.page))){await renderPage(n);if(epoch!==state.epoch)return;drawHighlights(n,true);}redraw();
+ const payload={schema:'paper-lens/v1',title:state.title,fingerprint:state.fingerprint,pdfSha256:state.documentHash,pages:state.pages.length,summary:state.summary,highlights:state.highlights};
  const text=format==='json'?JSON.stringify(payload,null,2):`# ${state.title}\n\n${state.summary}\n\n`+state.highlights.map(h=>`## ${h.section} · p. ${h.page} · ${h.category}\n\n> ${h.quote}\n\n${h.explanation}\n\n${h.why}\n\n${h.note?`**My notes:** ${h.note}\n\n`:''}*${h.origin}*\n`).join('\n');
  const url=URL.createObjectURL(new Blob([text],{type:format==='json'?'application/json':'text/markdown'}));const a=el('a');a.href=url;a.download=state.title.replace(/[^\p{L}\p{N} -]/gu,'').slice(0,90)+'.'+(format==='json'?'json':'md');a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);$('export-dialog').close();
 }
@@ -145,18 +154,23 @@ $('demo').addEventListener('click',async()=>{$('welcome').hidden=true;$('workspa
 for(const id of ['open-file','welcome-file'])$(id).addEventListener('click',()=>$('file').click());
 $('file').addEventListener('change',async()=>{const file=$('file').files[0];if(file)await openPdf(new Uint8Array(await file.arrayBuffer()),file.name);$('file').value='';});
 $('open-url').addEventListener('click',()=>$('url-dialog').showModal());$('load-url').addEventListener('click',()=>{if(!$('pdf-url').reportValidity())return;loadUrl($('pdf-url').value).catch(e=>{$('url-dialog').close();$('welcome').hidden=true;$('workspace').hidden=false;status(e.message,true);});});
-$('settings-open').addEventListener('click',openSettings);$('save-settings').addEventListener('click',async()=>{try{const endpoint=providerUrl($('api-endpoint').value).href;if(!$('api-model').value.trim())throw Error('Enter a model ID.');await permissionFor(endpoint);const s={endpoint,model:$('api-model').value.trim(),interests:$('interests').value.trim()};sessionKey=$('api-key').value.trim();localStorage.setItem('paper-lens-settings',JSON.stringify(s));if($('remember-key').checked)localStorage.setItem('paper-lens-key',JSON.stringify(sessionKey));else localStorage.removeItem('paper-lens-key');$('settings').close();}catch(e){$('settings-status').textContent=e.message;}});
+$('settings-open').addEventListener('click',openSettings);$('backend').addEventListener('change',updateBackendUI);
+$('check-codex').addEventListener('click',async()=>{$('check-codex').disabled=true;$('connection-status').textContent='Checking local Codex…';try{const r=await nativeRequest('status');$('connection-status').textContent=r.auth==='chatgpt'?'Connected · ChatGPT subscription · no API key':'Unexpected authentication mode.';}catch(e){$('connection-status').textContent=e.message;}finally{$('check-codex').disabled=false;}});
+$('save-settings').addEventListener('click',async()=>{try{const backend=$('backend').value;let endpoint=$('api-endpoint').value.trim();if(backend==='api'){endpoint=providerUrl(endpoint).href;if(!$('api-model').value.trim())throw Error('Enter a model ID.');await permissionFor(endpoint);}const s={backend,codexModel:$('codex-model').value.trim(),endpoint,model:$('api-model').value.trim(),interests:$('interests').value.trim()};sessionKey=$('api-key').value.trim();localStorage.setItem('paper-lens-settings',JSON.stringify(s));if($('remember-key').checked)localStorage.setItem('paper-lens-key',JSON.stringify(sessionKey));else localStorage.removeItem('paper-lens-key');updateAnalysisLabel();$('settings').close();}catch(e){$('settings-status').textContent=e.message;}});
+$('cancel-analysis').addEventListener('click',()=>state.controller?.abort());
+
 $('local-analyze').addEventListener('click',()=>{state.highlights=mergeHighlights(selectCore(state.pages),state.highlights);state.summary='Local sentence ranking: section-aware reading cues. Explanations describe the passage’s role; use AI for semantic analysis.';state.filter='all';state.selected=null;save();renderList();redraw();$('inspector-content').replaceChildren(el('p','muted','Choose a passage to read its explanation.'));status(`Read all ${state.pages.length} pages · ${state.highlights.length} local reading cues. No document text was sent anywhere.`);});
 $('ai-analyze').addEventListener('click',()=>runAI());$('search').addEventListener('input',()=>{renderList();redraw();});$('export-open').addEventListener('click',()=>$('export-dialog').showModal());$('export-json').addEventListener('click',()=>exportNotes('json'));$('export-md').addEventListener('click',()=>exportNotes('md'));
 $('show-highlights').addEventListener('change',()=>$('pages').classList.toggle('highlights-hidden',!$('show-highlights').checked));
-function scrollToSource(target){const scroller=$('pdf-scroll');const a=target.getBoundingClientRect(),b=scroller.getBoundingClientRect();scroller.scrollTo({top:scroller.scrollTop+a.top-b.top-85,behavior:'instant'});}
+function scrollToSource(target){const page=target.closest('.pdf-page');if(page)$('page-indicator').textContent=`Page ${page.dataset.page} / ${state.pages.length}`;const scroller=$('pdf-scroll');const a=target.getBoundingClientRect(),b=scroller.getBoundingClientRect();scroller.scrollTo({top:scroller.scrollTop+a.top-b.top-85,behavior:'instant'});}
 async function goPage(){const n=Math.max(1,Math.min(state.pages.length,Number($('page-input').value)||1));const r=await renderPage(n);if(r)scrollToSource(r.box);}
 $('page-go').addEventListener('click',goPage);$('page-input').addEventListener('keydown',e=>{if(e.key==='Enter')goPage();});
 $('pdf-scroll').addEventListener('scroll',()=>{const boxes=[...$('pages').children];const top=$('pdf-scroll').getBoundingClientRect().top;const current=boxes.find(b=>b.getBoundingClientRect().bottom>top+30);if(current)$('page-indicator').textContent=`Page ${current.dataset.page} / ${state.pages.length}`;},{passive:true});
-async function zoom(delta){if(!state.pdf||state.loading)return;busy(true);state.scale=Math.max(.65,Math.min(1.8,state.scale+delta));$('zoom-value').textContent=Math.round(state.scale*100)+'%';observer?.disconnect();state.rendered.clear();state.rendering.clear();const epoch=++state.epoch;state.controller?.abort();try{await preparePages(epoch);}finally{if(epoch===state.epoch)busy(false);}}
+async function zoom(delta){if(!state.pdf||state.loading)return;busy(true);state.scale=Math.max(.65,Math.min(1.8,state.scale+delta));$('zoom-value').textContent=Math.round(state.scale*100)+'%';observer?.disconnect();state.rendered.clear();state.rendering.clear();const epoch=++state.epoch;state.controller?.abort();try{await preparePages(epoch);}finally{if(epoch===state.epoch){busy(false);$('cancel-analysis').hidden=true;}}}
 $('zoom-in').addEventListener('click',()=>zoom(.15));$('zoom-out').addEventListener('click',()=>zoom(-.15));
 $('pdf-scroll').addEventListener('mouseup',e=>{setTimeout(()=>{const selection=window.getSelection();const text=selection?.toString().trim();if(!text||text.length<12){$('selection-add').hidden=true;return;}const node=selection.anchorNode?.parentElement?.closest('.pdf-page');const end=selection.focusNode?.parentElement?.closest('.pdf-page');if(!node||node!==end)return;const quote=normalize(text);const anchor=findQuote(state.pages,quote,Number(node.dataset.page));if(!anchor)return;pendingSelection={quote,anchor,fingerprint:state.fingerprint};const button=$('selection-add');button.hidden=false;button.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';button.style.top=Math.max(70,e.clientY-48)+'px';},0);});
 $('selection-add').addEventListener('mousedown',e=>e.preventDefault());$('selection-add').addEventListener('click',()=>{if(!pendingSelection||pendingSelection.fingerprint!==state.fingerprint)return;const h={id:'user-'+crypto.randomUUID(),...pendingSelection,page:pendingSelection.anchor.page,section:'Your selected passage',category:'contribution',explanation:'Your highlight. Add a note below, or choose Explain with AI to get an explanation using the whole paper as context.',why:'',origin:'Your highlight'};state.highlights.push(h);state.filter='all';$('search').value='';$('selection-add').hidden=true;window.getSelection()?.removeAllRanges();save();renderList();redraw();selectHighlight(h.id,false);});
+updateAnalysisLabel();
 const params=new URLSearchParams(location.search);if(params.has('url'))loadUrl(params.get('url')).catch(e=>{status('Cannot open this link as a PDF: '+e.message,true);$('workspace').hidden=false;$('welcome').hidden=true;});else if(params.get('demo')==='1')$('demo').click();else{cachedPdf().then(c=>{if(c)openPdf(new Uint8Array(c.bytes),c.name);}).catch(()=>{});}
 // Read-only diagnostic hook for integration checks; contains no credentials.
 globalThis.paperLens={get snapshot(){return {pages:state.pages.length,highlights:state.highlights.length,fingerprint:state.fingerprint,rendered:[...state.rendered.keys()],quotes:state.highlights.map(h=>({page:h.page,quote:h.quote,parts:h.anchor.parts.length})),summary:state.summary};}};

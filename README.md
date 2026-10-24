@@ -31,7 +31,8 @@ Example endpoint shape: `https://YOUR-PROVIDER/v1/chat/completions`. Use the exa
 
 ## Reading
 
-- Click any colored highlight on the page or a reading-map card to see its explanation in the right margin.
+- Click a colored highlight, its category tag, or a reading-map card to open a floating explanation with notes. Close it to return to unobstructed reading.
+- The header starts hidden; **Tools** reveals it. **Map** shows or hides the Reading map. Zooming in automatically hides the map, and **Fit** returns the PDF to the available width. On narrow windows the map opens as a drawer.
 - Filter by motivation, contribution, method, result, or limitation. Search quotes, explanations, section names and notes.
 - Select text on one page, then **Highlight & explain** to create a personal annotation. Add notes immediately, or use **Explain with AI** for full-paper context through the selected backend.
 - Notes save automatically by PDF fingerprint. Reopen the same PDF to restore them. The most recent PDF is cached in IndexedDB for reload; other PDFs must be reopened using the file picker or URL.

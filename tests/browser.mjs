@@ -11,6 +11,7 @@ try{
  await page.goto(`chrome-extension://${id}/reader.html?demo=1`);
  await page.waitForFunction(()=>window.paperLens?.snapshot.pages===90&&window.paperLens.snapshot.highlights===16,{timeout:60000});
  await page.waitForSelector('.highlight-rect',{timeout:30000});
+ await page.locator('#toggle-header').click();
  const snapshot=await page.evaluate(()=>paperLens.snapshot);assert.equal(snapshot.pages,90);assert.equal(snapshot.highlights,16);
  assert.ok(snapshot.quotes.every(x=>x.parts>0));
  await page.screenshot({path:'test-results/reader-overview.png'});
@@ -24,7 +25,7 @@ try{
  await page.locator('.passage-card[data-id="guide-10"]').click();
  await page.waitForSelector('.inspector .explanation');await page.locator('#personal-note').fill('Compare ordinary RL with explicit CoT pressure.');
  await page.waitForTimeout(500);await page.screenshot({path:'test-results/rl-explanation.png'});
- await page.reload();await page.waitForFunction(()=>window.paperLens?.snapshot.highlights===16,{timeout:60000});
+ await page.reload();await page.waitForFunction(()=>window.paperLens?.snapshot.highlights===16,{timeout:60000});await page.locator('#toggle-header').click();
  await page.locator('.passage-card[data-id="guide-10"]').click();assert.equal(await page.locator('#personal-note').inputValue(),'Compare ordinary RL with explicit CoT pressure.');
  await page.getByRole('button',{name:'limitation',exact:true}).click();assert.equal(await page.locator('.passage-card').count(),4);
  await page.locator('#search').fill('single');assert.equal(await page.locator('.passage-card').count(),1);
@@ -68,6 +69,7 @@ try{
  assert.equal((await page.evaluate(()=>paperLens.snapshot.highlights)),0);
  await page.locator('#file').setInputFiles(path.join(process.cwd(),'fixtures/monitoring-monitorability.pdf'));
  await page.waitForFunction(()=>paperLens.snapshot.pages===90&&document.getElementById('status').textContent.includes('90 / 90 pages read'));
+ if(!await page.locator('.outline').isVisible())await page.locator('#toggle-map').click();
  await page.locator('#search').fill('My manually selected');await page.locator('.passage-card').first().click();assert.equal(await page.locator('#personal-note').inputValue(),'My manually selected source note.');
  assert.equal(errors.length,0,errors.join('\n'));
  fs.writeFileSync('test-results/browser-report.json',JSON.stringify({extensionId:id,fullPdfPages:snapshot.pages,guideHighlights:snapshot.highlights,verifiedPages:[...new Set(snapshot.quotes.map(x=>x.page))],notesPersisted:true,manualSelection:true,fileSwitch:true,ocrRequiredNotice:true,filters:true,export:true,localRanking:true,zoom:true,aiTransport:'mock provider; all 90 pages sent, quote rejection, HTML escaped, errors preserve notes',errors},null,2));

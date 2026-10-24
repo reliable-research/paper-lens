@@ -19,3 +19,10 @@ Public repository adaptation: demo downloads from arXiv on demand; browser tests
 - Unit/integration tests: 18 passing, including real-paper extraction, malformed frames and size limits, cache identity, API-key auth refusal, sanitized child environment, native client cancellation/disconnect, note merges and quote rejection. Cancellation test uses a SIGTERM-resistant fake CLI and confirms SIGKILL escalation terminates it before request cleanup.
 - API/viewer regression suite still passes; API is now explicitly selected in that suite. Default user interface selects Local Codex and does not show API-key fields.
 - Native host registration and live-result cache remain local. No authentication token, full paper PDF, or personal configuration is committed. The actual Codex result and screenshots are in git-ignored test-results. The public extension and companion are separate packages; no Chrome Web Store submission has been made.
+
+## Focused reader 0.3 — 24 October 2026
+
+- Removed the permanent right column; explanations and notes open in a dismissible popup beside the passage.
+- Header hidden by default, collapsible Reading map, source-position category tags, zoom auto-collapse, narrow-window drawer, and Fit control verified in an isolated Chromium extension profile.
+- All 18 unit/integration tests, focused-layout browser test, existing 90-page browser regression, and real native-messaging test passed. The native test used the previously generated live Codex result from cache: 28 highlights.
+- Visually inspected `test-results/focus-reader.png` and `test-results/focus-explanation.png` for PDF/tag alignment and popup layout.

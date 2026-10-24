@@ -1,13 +1,14 @@
 {
   "name": "paper-lens",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Chrome PDF reading guide with source-anchored highlights and explanations",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/browser.mjs",
     "package": "node scripts/package.mjs",
     "fetch:paper": "node scripts/fetch-paper.mjs",
-    "install:companion": "node companion/install.mjs"
+    "install:companion": "node companion/install.mjs",
+    "test:layout": "node tests/layout-browser.mjs"
   },
   "keywords": [],
   "author": "",

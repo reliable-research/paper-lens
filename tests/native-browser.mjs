@@ -5,6 +5,7 @@ try{
  await page.route('https://arxiv.org/pdf/2512.18311v1',r=>r.fulfill({path:path.join(process.cwd(),'fixtures/monitoring-monitorability.pdf'),contentType:'application/pdf'}));
  await page.goto(`chrome-extension://${id}/reader.html?demo=1`);await page.waitForFunction(()=>paperLens?.snapshot.pages===90&&paperLens.snapshot.highlights===16,{timeout:60000});
  assert.match(await page.locator('#ai-analyze').textContent(),/local Codex/);
+ await page.locator('#toggle-header').click();
  await page.locator('#settings-open').click();assert.equal(await page.locator('#backend').inputValue(),'codex');assert.equal(await page.locator('#api-settings').isVisible(),false);
  await page.locator('#check-codex').click();await page.waitForFunction(()=>document.getElementById('connection-status').textContent.includes('Connected · ChatGPT subscription'),{timeout:20000});
  await page.locator('#interests').fill('Reward hacking, CoT obfuscation, effects of reinforcement learning. Include the evaluation method and experimental limitations.');await page.locator('#save-settings').click();

@@ -26,3 +26,7 @@ Public repository adaptation: demo downloads from arXiv on demand; browser tests
 - Header hidden by default, collapsible Reading map, source-position category tags, zoom auto-collapse, narrow-window drawer, and Fit control verified in an isolated Chromium extension profile.
 - All 18 unit/integration tests, focused-layout browser test, existing 90-page browser regression, and real native-messaging test passed. The native test used the previously generated live Codex result from cache: 28 highlights.
 - Visually inspected `test-results/focus-reader.png` and `test-results/focus-explanation.png` for PDF/tag alignment and popup layout.
+
+## Explanation interactions 0.3.1
+
+- Browser checks cover hover and click, moving into the popup, automatic dismissal after leaving, and absence of duplicated source headings and quotes.

@@ -31,7 +31,7 @@ Example endpoint shape: `https://YOUR-PROVIDER/v1/chat/completions`. Use the exa
 
 ## Reading
 
-- Click a colored highlight, its category tag, or a reading-map card to open a floating explanation with notes. Close it to return to unobstructed reading.
+- Hover over or click a colored highlight or its category tag to open a floating explanation with notes. It stays open while the pointer is over the passage or popup, then disappears when you move away. Reading-map cards also open explanations. The popup omits the heading, page label, and source quotation already visible in the PDF.
 - The header starts hidden; **Tools** reveals it. **Map** shows or hides the Reading map. Zooming in automatically hides the map, and **Fit** returns the PDF to the available width. On narrow windows the map opens as a drawer.
 - Filter by motivation, contribution, method, result, or limitation. Search quotes, explanations, section names and notes.
 - Select text on one page, then **Highlight & explain** to create a personal annotation. Add notes immediately, or use **Explain with AI** for full-paper context through the selected backend.

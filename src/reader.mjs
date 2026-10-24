@@ -6,7 +6,7 @@ pdfjs.GlobalWorkerOptions.workerSrc=new URL('../vendor/pdf.worker.mjs',import.me
 const $=id=>document.getElementById(id);
 const cats=['motivation','contribution','method','result','limitation'];
 const state={pages:[],pdf:null,highlights:[],summary:'',filter:'all',selected:null,scale:1,rendered:new Map(),rendering:new Map(),epoch:0,title:'',fingerprint:'',controller:null,loading:false,baseWidth:620};
-let mapHidden=window.innerWidth<1000,headerOpen=false,layoutTimer=null,pendingLayout=false,suppressCloseUntil=0;
+let mapHidden=window.innerWidth<1000,headerOpen=false,layoutTimer=null,pendingLayout=false,suppressCloseUntil=0,explanationTimer=null;
 let sessionKey='',pendingSelection=null,observer=null;
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
@@ -55,7 +55,12 @@ async function openPdf(bytes,name,{guide=false}={}){
  }catch(error){if(epoch!==state.epoch)return;busy(false);status('Could not open PDF: '+error.message,true);}
 }
 function applyLayout(){document.querySelector('.reader-grid').classList.toggle('map-hidden',mapHidden);$('toggle-map').setAttribute('aria-expanded',String(!mapHidden));document.querySelector('.topbar').hidden=!headerOpen;document.querySelector('.document-bar').hidden=!headerOpen;$('toggle-header').setAttribute('aria-expanded',String(headerOpen));$('toggle-header').textContent=headerOpen?'Hide tools':'Tools';}
-function closeExplanation(){$('explanation-popover').hidden=true;}
+function closeExplanation(){clearTimeout(explanationTimer);explanationTimer=null;$('explanation-popover').hidden=true;}
+function scheduleExplanationClose(){clearTimeout(explanationTimer);explanationTimer=setTimeout(closeExplanation,300);}
+function explanationTarget(target){return target instanceof Element?target.closest('.highlight-rect, .pdf-tag, #explanation-popover'):null;}
+document.addEventListener('pointerover',e=>{const target=explanationTarget(e.target);if(!target)return;clearTimeout(explanationTimer);explanationTimer=null;if(target.id==='explanation-popover'||explanationTarget(e.relatedTarget)===target)return;const h=state.highlights.find(h=>h.id===target.dataset.id);if(h&&($('explanation-popover').hidden||$('explanation-popover').dataset.highlight!==h.id))renderInspector(h);});
+document.addEventListener('pointerout',e=>{if(explanationTarget(e.target)&&!explanationTarget(e.relatedTarget))scheduleExplanationClose();});
+document.addEventListener('pointermove',e=>{if($('explanation-popover').hidden)return;if(explanationTarget(e.target)){clearTimeout(explanationTimer);explanationTimer=null;}else if(!explanationTimer)explanationTimer=setTimeout(closeExplanation,300);});
 function positionExplanation(h){const panel=$('explanation-popover');const mark=state.rendered.get(h.page)?.overlay.querySelector(`[data-id="${h.id}"]`);const rect=mark?.getBoundingClientRect();const width=Math.min(370,window.innerWidth-24),height=Math.min(panel.offsetHeight||480,window.innerHeight-80);let left=rect?rect.right+14:window.innerWidth-width-18;if(left+width>window.innerWidth-12)left=rect&&rect.left>width+24?rect.left-width-14:window.innerWidth-width-12;panel.style.left=Math.max(12,left)+'px';panel.style.top=Math.max(55,Math.min(rect?.top||80,window.innerHeight-height-12))+'px';}
 async function relayout({fit=false}={}){applyLayout();if(!state.pdf)return;if(state.loading){pendingLayout=true;return;}const selected=state.selected,n=Number($('page-indicator').textContent.match(/Page (\d+)/)?.[1]||$('page-input').value)||1;busy(true);closeExplanation();observer?.disconnect();const pending=[...state.rendering.values()];const epoch=++state.epoch;await Promise.allSettled(pending);if(epoch!==state.epoch)return;state.rendered.clear();state.rendering.clear();if(fit)state.scale=1;$('zoom-value').textContent=Math.round(state.scale*100)+'%';try{await preparePages(epoch);if(epoch===state.epoch){const r=await renderPage(n,epoch);if(r)scrollToSource(r.box);state.selected=selected;}}finally{if(epoch===state.epoch)busy(false);}}
 async function preparePages(epoch){
@@ -90,9 +95,9 @@ function drawHighlights(n,all=false){
   let first=true,tagTop=null;const pdfRects=[];
   for(const part of h.anchor.parts){const span=r.textLayer.textDivs[part.item];const node=span?.firstChild;if(!node||node.nodeType!==Node.TEXT_NODE)continue;
    const range=document.createRange();range.setStart(node,Math.min(part.start,node.length));range.setEnd(node,Math.min(part.end,node.length));
-   for(const rect of range.getClientRects()){if(rect.width<1||rect.height<1)continue;const a=r.viewport.convertToPdfPoint(rect.left-bounds.left,rect.top-bounds.top),b=r.viewport.convertToPdfPoint(rect.right-bounds.left,rect.bottom-bounds.top);if(tagTop===null)tagTop=rect.top-bounds.top;pdfRects.push({x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(a[0]-b[0]),height:Math.abs(a[1]-b[1])});const mark=el('button',`highlight-rect ${h.category}${h.id===state.selected?' selected':''}`);mark.dataset.id=h.id;mark.title=h.explanation;mark.setAttribute('aria-label',`${h.category}: ${h.quote}`);mark.tabIndex=first?0:-1;first=false;Object.assign(mark.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});mark.addEventListener('click',()=>selectHighlight(h.id,false));r.overlay.append(mark);}
+   for(const rect of range.getClientRects()){if(rect.width<1||rect.height<1)continue;const a=r.viewport.convertToPdfPoint(rect.left-bounds.left,rect.top-bounds.top),b=r.viewport.convertToPdfPoint(rect.right-bounds.left,rect.bottom-bounds.top);if(tagTop===null)tagTop=rect.top-bounds.top;pdfRects.push({x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(a[0]-b[0]),height:Math.abs(a[1]-b[1])});const mark=el('button',`highlight-rect ${h.category}${h.id===state.selected?' selected':''}`);mark.dataset.id=h.id;mark.setAttribute('aria-label',`${h.category}: ${h.quote}`);mark.tabIndex=first?0:-1;first=false;Object.assign(mark.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});mark.addEventListener('click',()=>selectHighlight(h.id,false));r.overlay.append(mark);}
   }
-  if(tagTop!==null){const tag=el('button',`pdf-tag ${h.category}`,h.category);tag.dataset.id=h.id;tag.style.top=tagTop+'px';tag.title=h.explanation;tag.setAttribute('aria-label',`${h.category}: ${h.quote}`);tag.addEventListener('click',()=>selectHighlight(h.id,false));r.overlay.append(tag);}
+  if(tagTop!==null){const tag=el('button',`pdf-tag ${h.category}`,h.category);tag.dataset.id=h.id;tag.style.top=tagTop+'px';tag.setAttribute('aria-label',`${h.category}: ${h.quote}`);tag.addEventListener('click',()=>selectHighlight(h.id,false));r.overlay.append(tag);}
   h.geometry={page:n,coordinateSystem:'PDF points; origin at bottom-left',rects:pdfRects};
  }
 }
@@ -113,9 +118,9 @@ async function selectHighlight(id,jump=true){
  renderInspector(h);
 }
 function renderInspector(h){
- $('explanation-popover').hidden=false;const c=$('inspector-content');c.replaceChildren();
+ clearTimeout(explanationTimer);explanationTimer=null;$('explanation-popover').dataset.highlight=h.id;$('explanation-popover').hidden=false;const c=$('inspector-content');c.replaceChildren();
  const top=el('div','inspector-actions');const close=el('button','','× Close');close.id='close-explanation';close.addEventListener('click',closeExplanation);top.append(close);
- c.append(top,el('div',`tag ${h.category}`,h.category),el('h3','inspector-title',h.section),el('div','muted small',`Page ${h.page} · Source-anchored passage`),el('blockquote','quote',h.quote),el('h4','','What it means'),el('div','explanation',h.explanation));
+ c.append(top,el('div',`tag ${h.category}`,h.category),el('h4','','What it means'),el('div','explanation',h.explanation));
  if(h.why)c.append(el('h4','','Why it matters'),el('div','why',h.why));
  c.append(el('div','origin',h.origin));
  const label=el('label','note-label','Your notes');label.htmlFor='personal-note';const note=el('textarea');note.id='personal-note';note.placeholder='Your question, connection, or observation…';note.value=h.note||'';const saved=el('div','note-saved','Saved automatically');note.addEventListener('input',()=>{h.note=note.value;save();});c.append(label,note,saved);
